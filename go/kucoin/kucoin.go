@@ -262,6 +262,7 @@ func (self *Kucoin) Describe() []byte {
     "options": {
         "version": "v1",
         "symbolSeparator": "-",
+        "tradeType": "TRADE",
         "fetchMyTradesMethod": "private_get_fills",
         "fetchBalance": {
             "type": "trade"
@@ -398,6 +399,7 @@ func (self *Kucoin) CreateOrder(symbol string, _type string, side string, amount
 		"side":      side,
 		"symbol":    marketId,
 		"type":      _type,
+		"tradeType": self.Options["tradeType"],
 	}
 	if _type != "market" {
 		self.SetValue(request, "price", self.Float64ToString(price))
@@ -450,7 +452,8 @@ func (self *Kucoin) CancelOrder(id string, symbol string, params map[string]inte
 func (self *Kucoin) FetchOrdersByStatus(status string, symbol string, since int64, limit int64, params map[string]interface{}) (orders interface{}) {
 	self.LoadMarkets()
 	request := map[string]interface{}{
-		"status": status,
+		"status":    status,
+		"tradeType": self.Options["tradeType"],
 	}
 	var market interface{}
 	if self.ToBool(!self.TestNil(symbol)) {
@@ -576,7 +579,12 @@ func (self *Kucoin) FetchBalance(params map[string]interface{}) (balanceResult *
 	}()
 	self.LoadMarkets()
 	var _type interface{}
-	request := map[string]interface{}{}
+	request := map[string]interface{}{
+		"type": strings.ToLower(self.Options["tradeType"].(string)),
+	}
+	if self.Options["tradeType"].(string) != "TRADE" {
+		request["type"] = "margin"
+	}
 	if self.ToBool(self.InMap("type", params)) {
 		_type = self.Member(params, "type")
 		if self.ToBool(!self.TestNil(_type)) {
@@ -594,16 +602,13 @@ func (self *Kucoin) FetchBalance(params map[string]interface{}) (balanceResult *
 	}
 	for i := 0; i < self.Length(data); i++ {
 		balance := self.Member(data, i)
-		balanceType := self.SafeString(balance, "type", "")
-		if self.ToBool(balanceType == _type) {
-			currencyId := self.SafeString(balance, "currency", "")
-			code := self.SafeCurrencyCode(currencyId)
-			account := self.Account()
-			self.SetValue(account, "total", self.SafeFloat(balance, "balance", 0))
-			self.SetValue(account, "free", self.SafeFloat(balance, "available", 0))
-			self.SetValue(account, "used", self.SafeFloat(balance, "holds", 0))
-			self.SetValue(result, code, account)
-		}
+		currencyId := self.SafeString(balance, "currency", "")
+		code := self.SafeCurrencyCode(currencyId)
+		account := self.Account()
+		self.SetValue(account, "total", self.SafeFloat(balance, "balance", 0))
+		self.SetValue(account, "free", self.SafeFloat(balance, "available", 0))
+		self.SetValue(account, "used", self.SafeFloat(balance, "holds", 0))
+		self.SetValue(result, code, account)
 	}
 	return self.ParseBalance(result), nil
 }
