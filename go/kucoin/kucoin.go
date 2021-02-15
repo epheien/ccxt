@@ -644,6 +644,12 @@ func (self *Kucoin) Sign(path string, api string, method string, params map[stri
 		payload := timestamp + method + endpoint + endpart
 		signature := self.Hmac(self.Encode(payload), self.Encode(self.Secret), "sha256", "base64")
 		self.SetValue(headers, "KC-API-SIGN", self.Decode(signature))
+		if self.Uid != "" {
+			// hack! 设置了 uid 的则表示为 v2 的 apikey
+			headers.(map[string]interface{})["KC-API-KEY-VERSION"] = "2"
+			password := self.Hmac(self.Encode(self.Password), self.Encode(self.Secret), "sha256", "base64")
+			headers.(map[string]interface{})["KC-API-PASSPHRASE"] = self.Decode(password)
+		}
 	}
 	return map[string]interface{}{
 		"url":     url,

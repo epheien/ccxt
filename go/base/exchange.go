@@ -95,8 +95,9 @@ type MinMax struct {
 // ExchangeConfig for main configuration
 // Timeout takes json value in milliseconds
 type ExchangeConfig struct {
-	ApiKey          string `json:"apiKey"`
-	Password        string
+	ApiKey          string        `json:"apiKey"`
+	Password        string        `json:"password"`
+	Uid             string        `json:"uid"`
 	Secret          string        `json:"secret"`
 	Timeout         time.Duration `json:"timeout"`
 	EnableRateLimit bool          `json:"enableRateLimit"`
@@ -1731,7 +1732,7 @@ func (self *Exchange) SetPassword(s string) {
 	self.Password = s
 }
 func (self *Exchange) SetUid(s string) {
-	// TODO
+	self.Uid = s
 }
 
 func (self *Exchange) ParseOrders(orders interface{}, market interface{}, since int64, limit int64) (result []interface{}) {
