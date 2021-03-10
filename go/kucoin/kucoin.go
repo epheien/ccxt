@@ -669,7 +669,6 @@ func (self *Kucoin) HandleErrors(code int64, reason string, url string, method s
 	self.ThrowExactlyMatchedException(self.Member(self.Exceptions, "exact"), message, message)
 	self.ThrowExactlyMatchedException(self.Member(self.Exceptions, "exact"), errorCode, message)
 	if errorCode != "200000" {
-		fmt.Println(self.Id)
 		self.RaiseException("ExchangeError", fmt.Sprintf("%s %s", self.Id, body))
 	}
 }
