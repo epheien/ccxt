@@ -412,7 +412,7 @@ func (self *Kucoin) CreateOrder(symbol string, _type string, side string, amount
 		}
 	}
 	response := self.ApiFunc("privatePostOrders", self.Extend(request, params), nil, nil)
-	data := self.SafeValue(response, "data", map[string]interface{}{})
+	data := self.SafeValue(response, "data")
 	timestamp := self.Milliseconds()
 	order := map[string]interface{}{
 		"id":            self.SafeString(data, "orderId", ""),
@@ -668,6 +668,10 @@ func (self *Kucoin) HandleErrors(code int64, reason string, url string, method s
 	message := self.SafeString(response, "msg", "")
 	self.ThrowExactlyMatchedException(self.Member(self.Exceptions, "exact"), message, message)
 	self.ThrowExactlyMatchedException(self.Member(self.Exceptions, "exact"), errorCode, message)
+	if errorCode != "200000" {
+		fmt.Println(self.Id)
+		self.RaiseException("ExchangeError", fmt.Sprintf("%s %s", self.Id, body))
+	}
 }
 
 func (self *Kucoin) LoadMarkets() map[string]*Market {

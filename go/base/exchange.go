@@ -972,6 +972,10 @@ func (self *Exchange) RegSplit(text string, delimeter string) (result []string) 
 }
 
 func (self *Exchange) DefineRestApi() (err error) {
+	// NOTE: HACK! 初始化一些必要的成员变量
+	self.Id = self.DescribeMap["id"].(string)
+	self.Name = self.DescribeMap["name"].(string)
+
 	self.ApiDecodeInfo = make(map[string]*ApiDecode)
 
 	if jsonApiInfo, ok := self.DescribeMap["api"].(map[string]interface{}); ok {
