@@ -27,6 +27,9 @@ func loadApiKey(ex *MarginKucoin) {
 	ex.ApiKey = data["apiKey"].(string)
 	ex.Secret = data["secret"].(string)
 	ex.Password = data["password"].(string)
+	if data["uid"] != nil {
+		ex.Uid = data["uid"].(string)
+	}
 }
 
 func TestFetchOrderBook(t *testing.T) {
