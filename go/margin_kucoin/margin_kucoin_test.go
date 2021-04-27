@@ -30,6 +30,7 @@ func loadApiKey(ex *MarginKucoin) {
 }
 
 func TestFetchOrderBook(t *testing.T) {
+	symbol := "BTC/USDT"
 	ex, err := New(nil)
 	if err != nil {
 		t.Fatal(err)
@@ -39,7 +40,7 @@ func TestFetchOrderBook(t *testing.T) {
 	loadApiKey(ex)
 
 	// @ FetchOrderBook
-	orderbook, err := ex.FetchOrderBook("BTC/USDT", 5, nil)
+	orderbook, err := ex.FetchOrderBook(symbol, 5, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,28 +55,28 @@ func TestFetchOrderBook(t *testing.T) {
 	return
 
 	// @ CreateOrder
-	order, err := ex.CreateOrder("ETH/BTC", "limit", "buy", 0.0001, 0.01, nil)
+	order, err := ex.CreateOrder(symbol, "limit", "buy", 0.001 /*amount*/, 0.1 /*price*/, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	log.Println("##### CreateOrder:", order.Id)
 
 	// @ FetchOrder
-	o, err := ex.FetchOrder(order.Id, "ETH/BTC", nil)
+	o, err := ex.FetchOrder(order.Id, symbol, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	log.Println("##### FetchOrder:", ex.Json(o))
 
 	// @ FetchOpenOrders
-	openOrders, err := ex.FetchOpenOrders("ETH/BTC", 0, 0, nil)
+	openOrders, err := ex.FetchOpenOrders(symbol, 0, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	log.Println("##### FetchOpenOrders:", ex.Json(openOrders))
 
 	// @ CancelOrder
-	resp, err := ex.CancelOrder(order.Id, "ETH/BTC", nil)
+	resp, err := ex.CancelOrder(order.Id, symbol, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

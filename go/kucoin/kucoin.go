@@ -176,7 +176,8 @@ func (self *Kucoin) Describe() []byte {
                 "margin/repay/single",
                 "margin/lend",
                 "margin/toggle-auto-lend",
-                "bullet-private"
+                "bullet-private",
+                "margin/order"
             ],
             "delete": [
                 "withdrawals/{withdrawalId}",
@@ -411,7 +412,12 @@ func (self *Kucoin) CreateOrder(symbol string, _type string, side string, amount
 			self.SetValue(request, "size", self.Float64ToString(amount))
 		}
 	}
-	response := self.ApiFunc("privatePostOrders", self.Extend(request, params), nil, nil)
+	var response map[string]interface{}
+	if self.Options["tradeType"].(string) == "TRADE" {
+		response = self.ApiFunc("privatePostOrders", self.Extend(request, params), nil, nil)
+	} else {
+		response = self.ApiFunc("privatePostMarginOrder", self.Extend(request, params), nil, nil)
+	}
 	data := self.SafeValue(response, "data")
 	timestamp := self.Milliseconds()
 	order := map[string]interface{}{

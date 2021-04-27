@@ -156,7 +156,8 @@ func (self *MarginKucoin) Describe() []byte {
                 "margin/repay/single",
                 "margin/lend",
                 "margin/toggle-auto-lend",
-                "bullet-private"
+                "bullet-private",
+                "margin/order"
             ],
             "delete": [
                 "withdrawals/{withdrawalId}",
