@@ -161,7 +161,9 @@ func (self *Kucoin) Describe() []byte {
                 "margin/lend/trade/settled",
                 "margin/lend/assets",
                 "margin/market",
-                "margin/margin/trade/last"
+                "margin/margin/trade/last",
+                "v3/market/orderbook/level2",
+                "v3/market/orderbook/level3"
             ],
             "post": [
                 "accounts",
@@ -626,7 +628,12 @@ func (self *Kucoin) Sign(path string, api string, method string, params map[stri
 	defaultVersion := self.SafeString(methodVersions, path, self.Member(self.Options, "version").(string))
 	version := self.SafeString(params, "version", defaultVersion)
 	params = self.Omit(params, "version")
-	endpoint := "/api/" + version + "/" + self.ImplodeParams(path, params)
+	var endpoint string
+	if strings.HasPrefix(path, "v2/") || strings.HasPrefix(path, "v3/") {
+		endpoint = "/api/" + self.ImplodeParams(path, params)
+	} else {
+		endpoint = "/api/" + version + "/" + self.ImplodeParams(path, params)
+	}
 	query := self.Omit(params, self.ExtractParams(path))
 	endpart := ""
 	headers = self.IfThenElse(self.ToBool(!self.TestNil(headers)), headers, map[string]interface{}{})
@@ -650,12 +657,10 @@ func (self *Kucoin) Sign(path string, api string, method string, params map[stri
 		payload := timestamp + method + endpoint + endpart
 		signature := self.Hmac(self.Encode(payload), self.Encode(self.Secret), "sha256", "base64")
 		self.SetValue(headers, "KC-API-SIGN", self.Decode(signature))
-		if self.Uid != "" {
-			// hack! 设置了 uid 的则表示为 v2 的 apikey
-			headers.(map[string]interface{})["KC-API-KEY-VERSION"] = "2"
-			password := self.Hmac(self.Encode(self.Password), self.Encode(self.Secret), "sha256", "base64")
-			headers.(map[string]interface{})["KC-API-PASSPHRASE"] = self.Decode(password)
-		}
+		// v2 apiKey
+		headers.(map[string]interface{})["KC-API-KEY-VERSION"] = "2"
+		password := self.Hmac(self.Encode(self.Password), self.Encode(self.Secret), "sha256", "base64")
+		headers.(map[string]interface{})["KC-API-PASSPHRASE"] = self.Decode(password)
 	}
 	return map[string]interface{}{
 		"url":     url,
