@@ -571,6 +571,7 @@ type ExchangeInterface interface {
 	BaseUrl() string
 
 	FetchCurrencies(params map[string]interface{}) map[string]interface{}
+	ApiFunc(function string, params interface{}, headers map[string]interface{}, body interface{}) (response map[string]interface{})
 }
 
 type ExchangeInterfaceInternal interface {
