@@ -76,7 +76,7 @@ func (self *Bitmax) Describe() []byte {
     "version": "v1",
     "urls": {
         "logo": "https://user-images.githubusercontent.com/1294454/66820319-19710880-ef49-11e9-8fbe-16be62a11992.jpg",
-        "api": "https://bitmax.io",
+        "api": "https://ascendex.com",
         "test": "https://bitmax-test.io",
         "www": "https://bitmax.io",
         "doc": [
