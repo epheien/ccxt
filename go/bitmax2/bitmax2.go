@@ -290,9 +290,12 @@ func (self *Bitmax2) FetchBalance(params map[string]interface{}) (balanceResult 
 		balance := self.Member(balances, i)
 		code := self.SafeCurrencyCode(self.SafeString(balance, "asset", ""))
 		account := self.Account()
-		self.SetValue(account, "free", self.SafeString(balance, "availableBalance", ""))
-		self.SetValue(account, "total", self.SafeString(balance, "totalBalance", ""))
-		self.SetValue(result, code, account)
+		free := self.SafeFloat(balance, "availableBalance", 0)
+		total := self.SafeFloat(balance, "totalBalance", 0)
+		account["free"] = free
+		account["total"] = total
+		account["used"] = total - free
+		result[code] = account
 	}
 	return self.ParseBalance(result), nil
 }
