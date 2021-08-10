@@ -13,18 +13,9 @@ import esprima
 import json
 
 
-EX_NAME = 'Kucoin'
+EX_NAME = ''
 CODE_INFO = {}
-
-
-def get_ex_list():
-    return [
-        # 'kucoin',
-        # 'huobipro',
-        'okex',
-        # 'bitmax',
-        # 'binance'
-    ]
+PWD = os.path.dirname(__file__)
 
 
 def get_func_code_map(code_str):
@@ -685,15 +676,16 @@ func TestFetchOrderBook(t *testing.T) {{
 }}
 
 //func main() {{
-	//ex := &ccxt.Kucoin{{}}
-	//ex.Init()
-	//// testFetchMarkets(ex)
-	//fmt.Println("enter")
-	//testFetchOrderBook(ex)
+//	ex := &ccxt.Kucoin{{}}
+//	ex.Init()
+//	// testFetchMarkets(ex)
+//	fmt.Println("enter")
+//	testFetchOrderBook(ex)
 //}}'''
 
 def write_ex_file(ex, code):
-    des_dir = os.path.join('..', 'go', 'generated', f'{ex.lower()}')
+    global PWD
+    des_dir = os.path.join(PWD, '..', 'go', 'generated', f'{ex.lower()}')
     if not os.path.exists(des_dir):
         os.makedirs(des_dir)
     with open(os.path.join(des_dir, f'{ex.lower()}.go'), 'w') as f:
@@ -705,17 +697,17 @@ def write_ex_file(ex, code):
     cmd = 'GO111MODULE=on go fmt -x %s' % shlex.quote(des_dir)
     p = subprocess.Popen(cmd, shell=True)
     p.communicate()
+    if p.poll() == 0:
+        print(ex, 'translate done:', des_dir)
 
 
-def translate():
+def main():
     global EX_NAME
-    for ex in get_ex_list():
+    for ex in sys.argv[1:]:
         EX_NAME = ex.capitalize()
         code = format_ex_code(ex)
         write_ex_file(ex, code)
 
 
 if __name__ == '__main__':
-    # test()
-    print(os.getcwd())
-    translate()
+    sys.exit(main())
