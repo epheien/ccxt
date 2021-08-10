@@ -1371,6 +1371,22 @@ func (self *Exchange) SafeFloat(d interface{}, key string, defaultVal float64) (
 	return defaultVal
 }
 
+func (self *Exchange) SafeNumber(d interface{}, key string, def_ ...float64) float64 {
+	def := 0.0
+	if len(def_) > 0 {
+		def = def_[0]
+	}
+	return self.SafeFloat(d, key, def)
+}
+
+func (self *Exchange) SafeNumber2(d interface{}, key1, key2 string, def_ ...float64) float64 {
+	def := 0.0
+	if len(def_) > 0 {
+		def = def_[0]
+	}
+	return self.SafeFloat2(d, key1, key2, def)
+}
+
 func (self *Exchange) Omit(d map[string]interface{}, args interface{}) (result map[string]interface{}) {
 	if argList, ok := args.([]string); ok {
 		for _, arg := range argList {
@@ -2086,4 +2102,33 @@ func (self *Exchange) CommonCurrencyCode(currency string) string {
 	//return self.SafeString(self.CommonCurrencies, currency, currency)
 	// NOTE: 我们不需要 CommonCurrencyCode 功能
 	return currency
+}
+
+func (self *Exchange) ParseNumber(v interface{}) float64 {
+	def := 0.0
+	if v == nil {
+		return def
+	}
+	f, ok := v.(float64)
+	if ok {
+		return f
+	}
+	return def
+}
+
+func (self *Exchange) SafeSymbol(marketId string, market interface{}, delimiter string) (symbol string) {
+	if marketId != "" {
+		if self.ToBool(self.InMap(marketId, self.MarketsById)) {
+			market = self.Member(self.MarketsById, marketId)
+		} else {
+			baseId, quoteId := self.Unpack2(strings.Split(marketId, "/"))
+			base := self.SafeCurrencyCode(baseId)
+			quote := self.SafeCurrencyCode(quoteId)
+			symbol = base + delimiter + quote
+		}
+	}
+	if self.ToBool(self.TestNil(symbol) && !self.TestNil(market)) {
+		symbol = self.Member(market, "symbol").(string)
+	}
+	return
 }
