@@ -1495,7 +1495,7 @@ func (self *Exchange) ParseBalance(balances map[string]interface{}) (pAccount *A
 		if balance, ok := balance.(map[string]interface{}); ok {
 			free := self.SafeFloat(balance, "free", 0)
 			used := self.SafeFloat(balance, "used", 0)
-			total := self.SafeFloat(balance, "used", 0)
+			total := self.SafeFloat(balance, "total", 0)
 			account.Free[currency] = free
 			account.Used[currency] = used
 			account.Total[currency] = total
