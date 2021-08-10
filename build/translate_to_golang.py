@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# pip3 install esprima pyhumps
 
 import os
 import sys
