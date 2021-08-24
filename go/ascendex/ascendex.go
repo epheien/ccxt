@@ -9,6 +9,7 @@ import (
 
 type Ascendex struct {
 	Exchange
+	accountGroup string
 }
 
 func New(config *ExchangeConfig) (ex *Ascendex, err error) {
@@ -239,13 +240,13 @@ func (self *Ascendex) Describe() []byte {
 }
 
 func (self *Ascendex) FetchAccounts(params map[string]interface{}) []interface{} {
-	accountGroup := self.SafeString(self.Options, "account-group", "")
+	accountGroup := self.accountGroup
 	var response interface{}
 	if self.ToBool(self.TestNil(accountGroup)) {
 		response = self.ApiFunc("privateGetInfo", params, nil, nil)
 		data := self.SafeValue(response, "data", map[string]interface{}{})
 		accountGroup = self.SafeString(data, "accountGroup", "")
-		self.SetValue(self.Options, "account-group", accountGroup)
+		self.accountGroup = accountGroup
 	}
 	return []interface{}{map[string]interface{}{
 		"id":       accountGroup,
