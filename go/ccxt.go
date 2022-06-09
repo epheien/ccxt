@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/georgexdz/ccxt/go/ascendex"
 	"github.com/georgexdz/ccxt/go/base"
+	"github.com/georgexdz/ccxt/go/binance"
 	"github.com/georgexdz/ccxt/go/bitmax"
 	"github.com/georgexdz/ccxt/go/bitmax2"
 	"github.com/georgexdz/ccxt/go/kucoin"
@@ -17,6 +18,8 @@ type Order = base.Order
 
 func New(exchange string, config *base.ExchangeConfig) (ex IExchange, err error) {
 	switch exchange {
+	case "binance":
+		ex, err = binance.New(config)
 	case "kucoin":
 		ex, err = kucoin.New(config)
 	case "bitmax":
