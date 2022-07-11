@@ -21,7 +21,7 @@ import (
 	"log"
 	"net"
 	"net/http"
-	"net/url"
+	urllib "net/url"
 	"reflect"
 	"regexp"
 	"sync"
@@ -477,9 +477,9 @@ type DepositAddress struct {
 }
 
 type ApiDecode struct {
-	Path   string
-	Api    string
-	Method string
+	Api    string // public, private, ...
+	Method string // GET, POST, ...
+	Path   string // margin/asset, ...
 }
 
 // OHLCV open, high, low, close, volume
@@ -576,11 +576,15 @@ type ExchangeInterface interface {
 
 type ExchangeInterfaceInternal interface {
 	ExchangeInterface
+	// 返回值类型一般来说是 map[string]interface{}
 	Sign(path string, api string, method string, params map[string]interface{}, headers interface{}, body interface{}) interface{}
 	ApiFuncDecode(function string) (path string, api string, method string)
 	ApiFunc(function string, params interface{}, headers map[string]interface{}, body interface{}) (response map[string]interface{})
 	ApiFuncReturnList(function string, params interface{}, headers map[string]interface{}, body interface{}) (response []interface{})
-	Fetch(url string, method string, headers map[string]interface{}, body interface{}) (response interface{})
+	// 返回原始 []byte, 一般用于给外部使用
+	ApiFuncRaw(function string, params map[string]interface{}, headers map[string]interface{}, body interface{}) (response []byte)
+	// 底层 http 调用, 状态号非 200 会抛出错误, 除非是不被关注的错误 (参考 Exchange.httpExceptions)
+	Fetch(url string, method string, headers map[string]interface{}, body interface{}) (response []byte)
 	Request(path string, api string, method string, params map[string]interface{}, headers map[string]interface{}, body interface{}) (response interface{})
 	Describe() []byte
 	ParseOrder(interface{}, interface{}) map[string]interface{}
@@ -620,6 +624,7 @@ func (self *Exchange) Init(config *ExchangeConfig) (err error) {
 		self.ExchangeConfig = *config
 	}
 
+	// @ 初始化 net/http 客户端
 	tr := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
 		//TLSClientConfig: &tls.Config{InsecureSkipVerify: false},
@@ -877,12 +882,22 @@ func (self *Exchange) Request(
 	body interface{},
 ) (response interface{}) {
 	signInfo := self.Child.Sign(path, api, method, params, headers, body)
-	return self.Child.Fetch(
-		self.Member(signInfo, "url").(string),
-		self.Member(signInfo, "method").(string),
+
+	url := self.Member(signInfo, "url").(string)
+	// 使用新值覆盖
+	method = self.Member(signInfo, "method").(string)
+	rawResp := self.Child.Fetch(
+		url,
+		method,
 		self.Member(signInfo, "headers").(map[string]interface{}),
 		self.Member(signInfo, "body"),
 	)
+
+	// 这里忽略错误, 上层做类型断言的时候会产生错误信息
+	json.Unmarshal(rawResp, &response)
+	self.HandleRestResponse(string(rawResp), response, url, method)
+
+	return
 }
 
 func (self *Exchange) PrepareRequestHeaders(req *http.Request, headers map[string]interface{}) {
@@ -893,7 +908,7 @@ func (self *Exchange) PrepareRequestHeaders(req *http.Request, headers map[strin
 	}
 }
 
-func (self *Exchange) Fetch(url string, method string, headers map[string]interface{}, body interface{}) (response interface{}) {
+func (self *Exchange) Fetch(url string, method string, headers map[string]interface{}, body interface{}) (response []byte) {
 	var rbody []byte
 	if body != nil {
 		switch body.(type) {
@@ -936,24 +951,20 @@ func (self *Exchange) Fetch(url string, method string, headers map[string]interf
 
 	defer resp.Body.Close()
 
-	respRaw, err := ioutil.ReadAll(resp.Body)
+	response, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		self.RaiseException("InternalError", fmt.Sprintf("read response err: %v", err))
 	}
 
-	strRawResp := string(respRaw)
+	strRawResp := string(response)
+
 	if self.Verbose {
 		log.Println("Response:", method, url, resp.StatusCode, resp.Header, strRawResp)
 	}
 
-	// ignore error
-	_ = json.Unmarshal(respRaw, &response)
-
 	self.Child.HandleErrors(int64(resp.StatusCode), resp.Status, url, method, resp.Header, strRawResp, response, headers, body)
 	if resp.StatusCode != 200 {
 		self.HandleRestErrors(resp.StatusCode, resp.Status, strRawResp, url, method)
-	} else {
-		self.HandleRestResponse(strRawResp, response, url, method)
 	}
 
 	return
@@ -1024,6 +1035,27 @@ func (self *Exchange) ApiFunc(function string, params interface{}, headers map[s
 func (self *Exchange) ApiFuncReturnList(function string, params interface{}, headers map[string]interface{}, body interface{}) (result []interface{}) {
 	path, api, method := self.Child.ApiFuncDecode(function)
 	return self.Child.Request(path, api, method, params.(map[string]interface{}), headers, body).([]interface{})
+}
+
+func (self *Exchange) ApiFuncRaw(function string, params map[string]interface{}, headers map[string]interface{}, body interface{}) (response []byte) {
+	path, api, method := self.Child.ApiFuncDecode(function)
+
+	signInfo := self.Child.Sign(path, api, method, params, headers, body)
+	url := self.Member(signInfo, "url").(string)
+	method = self.Member(signInfo, "method").(string)
+	response = self.Child.Fetch(
+		url,
+		method,
+		self.Member(signInfo, "headers").(map[string]interface{}),
+		self.Member(signInfo, "body"),
+	)
+
+	var resp interface{}
+	// 这里忽略错误, 上层做类型断言的时候会产生错误信息
+	json.Unmarshal(response, &resp)
+	self.HandleRestResponse(string(response), resp, url, method)
+
+	return
 }
 
 func (self *Exchange) Parse8601(x string) int64 {
@@ -1655,7 +1687,7 @@ func (self *Exchange) UrlencodeWithArrayRepeat(i interface{}) string {
 
 func (self *Exchange) Urlencode(i interface{}) string {
 	if m, ok := i.(map[string]interface{}); ok {
-		v := url.Values{}
+		v := urllib.Values{}
 
 		keys := make([]string, 0, len(m))
 		for k, _ := range m {
@@ -2046,6 +2078,7 @@ func (self *Exchange) DeepExtend(args ...interface{}) (result map[string]interfa
 }
 
 func (self *Exchange) InitDescribe() (err error) {
+	// TODO: 使用jsonx
 	err = json.Unmarshal(self.Child.Describe(), &self.DescribeMap)
 	if err != nil {
 		return
