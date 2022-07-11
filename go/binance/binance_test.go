@@ -2,19 +2,39 @@ package binance
 
 import (
 	"encoding/json"
-	"fmt"
-	"github.com/georgexdz/ccxt/go/generated/binance"
 	"io/ioutil"
 	"log"
+	"os"
 	"testing"
+
+	"github.com/georgexdz/ccxt/go/base"
 )
 
-func init() {
-	log.SetFlags(log.LstdFlags | log.Lmicroseconds)
+var symbol = "BTC/USDT"
+var ex *Binance
+var err error
+
+func setup() {
+	var err error
+	ex, err = New(nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ex.Verbose = true
+	loadApiKey(ex)
 }
 
-// api.json 需要放到和此文件同一目录
-func loadApiKey(ex *binance.Binance) {
+func teardown() {
+}
+
+func TestMain(m *testing.M) {
+	setup()
+	rc := m.Run()
+	teardown()
+	os.Exit(rc)
+}
+
+func loadApiKey(ex *Binance) {
 	plan, err := ioutil.ReadFile("api.json")
 	if err != nil {
 		return
@@ -31,60 +51,71 @@ func loadApiKey(ex *binance.Binance) {
 	if data["password"] != nil {
 		ex.Password = data["password"].(string)
 	}
+	if data["uid"] != nil {
+		ex.Uid = data["uid"].(string)
+	}
 }
 
-func TestFetchOrderBook(t *testing.T) {
-	ex, err := binance.New(nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestAll(t *testing.T) {
+	//testFetchOrderBook(t)
+	testFetchBalance(t)
+	//order := testCreateOrder(t); _ = order
+	//testFetchOrder(t, "a17f4bd53cc3U6303486880zIyl3lwIZ")
+	//testFetchOpenOrders(t)
+	//testCancelOrder(t, order)
+}
 
-	ex.Verbose = true
-	loadApiKey(ex)
-	fmt.Println(ex.ApiKey)
-
+func testFetchOrderBook(t *testing.T) {
 	// @ FetchOrderBook
-	orderbook, err := ex.FetchOrderBook("BTC/USDT", 5, nil)
+	orderbook, err := ex.FetchOrderBook(symbol, 5, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	log.Println("##### FetchOrderBook:", orderbook)
+}
 
+func testFetchBalance(t *testing.T) {
 	// @ FetchBalance
 	balance, err := ex.FetchBalance(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	log.Println("##### FetchBalance:", ex.Json(balance))
+}
 
+func testCreateOrder(t *testing.T) *base.Order {
 	// @ CreateOrder
-	order, err := ex.CreateOrder("BTC/USDT", "limit", "buy", 0.002, 8000., nil)
+	order, err := ex.CreateOrder(symbol, "limit", "buy", 0.001 /*amount*/, 10000 /*price*/, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	log.Println("##### CreateOrder:", order.Id)
+	return order
+}
 
+func testFetchOrder(t *testing.T, orderId string) {
 	// @ FetchOrder
-	o, err := ex.FetchOrder(order.Id, "BTC/USDT", nil)
+	o, err := ex.FetchOrder(orderId, symbol, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	log.Println("##### FetchOrder:", ex.Json(o))
+}
 
+func testFetchOpenOrders(t *testing.T) {
 	// @ FetchOpenOrders
-	openOrders, err := ex.FetchOpenOrders("BTC/USDT", 0, 1000, nil)
+	openOrders, err := ex.FetchOpenOrders(symbol, 0, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	log.Println("##### FetchOpenOrders:", ex.Json(openOrders))
+}
 
+func testCancelOrder(t *testing.T, order *base.Order) {
 	// @ CancelOrder
-	for _, order := range openOrders {
-		resp, err := ex.CancelOrder(order.Id, "BTC/USDT", nil)
-		if err != nil {
-			t.Fatal(err)
-		}
-		log.Println("##### CancelOrder:", resp)
+	resp, err := ex.CancelOrder(order.Id, symbol, nil)
+	if err != nil {
+		t.Fatal(err)
 	}
-
+	log.Println("##### CancelOrder:", resp)
 }

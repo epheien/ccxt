@@ -422,7 +422,7 @@ func (self *Binance) FetchMarkets(params map[string]interface{}) []interface{} {
 			"precision":   precision,
 			"limits": map[string]interface{}{
 				"amount": map[string]interface{}{
-					"min": math.Pow10(-precision["amount"].(int)),
+					"min": math.Pow10(int(-precision["amount"].(int64))),
 					"max": nil,
 				},
 				"price": map[string]interface{}{
