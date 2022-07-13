@@ -1015,7 +1015,10 @@ func (self *Exchange) FetchViaFastHttp(url string, method string, headers map[st
 	}
 
 	status := fasthttp.StatusMessage(resp.StatusCode())
-	self.Child.HandleErrors(int64(resp.StatusCode()), status, url, method, resp.Header, strRawResp, response, headers, body)
+	var jsonResponse interface{}
+	json.Unmarshal(response, &jsonResponse)
+	// FIXME: header 需要转为 map[string]interface{} 或 map[string][]string
+	self.Child.HandleErrors(int64(resp.StatusCode()), status, url, method, resp.Header, strRawResp, jsonResponse, headers, body)
 	if resp.StatusCode() != fasthttp.StatusOK {
 		self.HandleRestErrors(resp.StatusCode(), status, strRawResp, url, method)
 	}
