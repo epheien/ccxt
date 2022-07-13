@@ -591,8 +591,8 @@ type ExchangeInterfaceInternal interface {
 	// 返回原始 []byte, 一般用于给外部使用
 	ApiFuncRaw(function string, params map[string]interface{}, headers map[string]interface{}, body interface{}) (response []byte)
 	// 底层 http 调用, 状态号非 200 会抛出错误, 除非是不被关注的错误 (参考 Exchange.httpExceptions)
-	Fetch(url string, method string, headers map[string]interface{}, body interface{}) (response []byte)
-	FetchViaFastHttp(url string, method string, headers map[string]interface{}, body interface{}) (response []byte)
+	Fetch(url string, method string, headers map[string]interface{}, body interface{}) (response []byte, jsonResponse interface{})
+	FetchViaFastHttp(url string, method string, headers map[string]interface{}, body interface{}) (response []byte, jsonResponse interface{})
 	Request(path string, api string, method string, params map[string]interface{}, headers map[string]interface{}, body interface{}) (response interface{})
 	Describe() []byte
 	ParseOrder(interface{}, interface{}) map[string]interface{}
@@ -928,14 +928,14 @@ func (self *Exchange) Request(
 	var rawResp []byte
 
 	if self.EnableFastHttp {
-		rawResp = self.Child.FetchViaFastHttp(
+		rawResp, response = self.Child.FetchViaFastHttp(
 			url,
 			method,
 			self.Member(signInfo, "headers").(map[string]interface{}),
 			self.Member(signInfo, "body"),
 		)
 	} else {
-		rawResp = self.Child.Fetch(
+		rawResp, response = self.Child.Fetch(
 			url,
 			method,
 			self.Member(signInfo, "headers").(map[string]interface{}),
@@ -943,8 +943,6 @@ func (self *Exchange) Request(
 		)
 	}
 
-	// 这里忽略错误, 上层做类型断言的时候会产生错误信息
-	json.Unmarshal(rawResp, &response)
 	self.HandleRestResponse(string(rawResp), response, url, method)
 
 	return
@@ -958,7 +956,7 @@ func (self *Exchange) PrepareRequestHeaders(req *http.Request, headers map[strin
 	}
 }
 
-func (self *Exchange) FetchViaFastHttp(url string, method string, headers map[string]interface{}, body interface{}) (response []byte) {
+func (self *Exchange) FetchViaFastHttp(url string, method string, headers map[string]interface{}, body interface{}) (response []byte, jsonResponse interface{}) {
 	var rbody []byte
 	if body != nil {
 		switch body.(type) {
@@ -1015,7 +1013,7 @@ func (self *Exchange) FetchViaFastHttp(url string, method string, headers map[st
 	}
 
 	status := fasthttp.StatusMessage(resp.StatusCode())
-	var jsonResponse interface{}
+	// 这里忽略错误, 上层做类型断言的时候会产生错误信息
 	json.Unmarshal(response, &jsonResponse)
 	// FIXME: header 需要转为 map[string]interface{} 或 map[string][]string
 	self.Child.HandleErrors(int64(resp.StatusCode()), status, url, method, resp.Header, strRawResp, jsonResponse, headers, body)
@@ -1026,7 +1024,7 @@ func (self *Exchange) FetchViaFastHttp(url string, method string, headers map[st
 	return
 }
 
-func (self *Exchange) Fetch(url string, method string, headers map[string]interface{}, body interface{}) (response []byte) {
+func (self *Exchange) Fetch(url string, method string, headers map[string]interface{}, body interface{}) (response []byte, jsonResponse interface{}) {
 	var rbody []byte
 	if body != nil {
 		switch body.(type) {
@@ -1080,7 +1078,9 @@ func (self *Exchange) Fetch(url string, method string, headers map[string]interf
 		log.Println("Response:", method, url, resp.StatusCode, resp.Header, strRawResp)
 	}
 
-	self.Child.HandleErrors(int64(resp.StatusCode), resp.Status, url, method, resp.Header, strRawResp, response, headers, body)
+	// 这里忽略错误, 上层做类型断言的时候会产生错误信息
+	json.Unmarshal(response, &jsonResponse)
+	self.Child.HandleErrors(int64(resp.StatusCode), resp.Status, url, method, resp.Header, strRawResp, jsonResponse, headers, body)
 	if resp.StatusCode != http.StatusOK {
 		self.HandleRestErrors(resp.StatusCode, resp.Status, strRawResp, url, method)
 	}
@@ -1161,7 +1161,7 @@ func (self *Exchange) ApiFuncRaw(function string, params map[string]interface{},
 	signInfo := self.Child.Sign(path, api, method, params, headers, body)
 	url := self.Member(signInfo, "url").(string)
 	method = self.Member(signInfo, "method").(string)
-	response = self.Child.Fetch(
+	response, _ = self.Child.Fetch(
 		url,
 		method,
 		self.Member(signInfo, "headers").(map[string]interface{}),
