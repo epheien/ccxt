@@ -35,6 +35,7 @@ import (
 
 	"github.com/dgrijalva/jwt-go"
 	"github.com/satori/go.uuid"
+	"github.com/valyala/fasthttp"
 )
 
 type JSONTime int64
@@ -604,6 +605,7 @@ type Exchange struct {
 	ExchangeConfig
 
 	Client         *http.Client
+	FastHttpClient *fasthttp.Client
 	Markets        map[string]*Market
 	MarketsById    map[string]*Market
 	Ids            []string
@@ -629,6 +631,12 @@ func (self *Exchange) Init(config *ExchangeConfig) (err error) {
 		self.ExchangeConfig = *config
 	}
 
+	// 默认超时时间 10 秒
+	netTimeout := 10 * time.Second
+	if self.ExchangeConfig.Timeout > 0 {
+		netTimeout = self.ExchangeConfig.Timeout
+	}
+
 	// @ 初始化 net/http 客户端
 	tr := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
@@ -636,10 +644,25 @@ func (self *Exchange) Init(config *ExchangeConfig) (err error) {
 	}
 	self.Client = &http.Client{
 		Transport: tr,
-		Timeout:   time.Second * 10, // 默认超时时间 10 秒
+		Timeout:   netTimeout,
 	}
-	if self.ExchangeConfig.Timeout > 0 {
-		self.Client.Timeout = self.ExchangeConfig.Timeout
+
+	// @ 初始化 fasthttp 客户端
+	readTimeout := netTimeout
+	writeTimeout := netTimeout
+	maxIdleConnDuration, _ := time.ParseDuration("1h")
+	self.FastHttpClient = &fasthttp.Client{
+		ReadTimeout:                   readTimeout,
+		WriteTimeout:                  writeTimeout,
+		MaxIdleConnDuration:           maxIdleConnDuration,
+		NoDefaultUserAgentHeader:      true, // Don't send: User-Agent: fasthttp
+		DisableHeaderNamesNormalizing: true, // If you set the case on your headers correctly you can enable this
+		DisablePathNormalizing:        true,
+		// increase DNS cache time to an hour instead of default minute
+		Dial: (&fasthttp.TCPDialer{
+			Concurrency:      4096,
+			DNSCacheDuration: time.Hour,
+		}).Dial,
 	}
 
 	self.httpExceptions = map[string]string{
