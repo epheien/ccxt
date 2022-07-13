@@ -36,6 +36,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/satori/go.uuid"
 	"github.com/valyala/fasthttp"
+	"github.com/valyala/fasthttp/fasthttpproxy"
 )
 
 type JSONTime int64
@@ -591,6 +592,7 @@ type ExchangeInterfaceInternal interface {
 	ApiFuncRaw(function string, params map[string]interface{}, headers map[string]interface{}, body interface{}) (response []byte)
 	// 底层 http 调用, 状态号非 200 会抛出错误, 除非是不被关注的错误 (参考 Exchange.httpExceptions)
 	Fetch(url string, method string, headers map[string]interface{}, body interface{}) (response []byte)
+	FetchViaFastHttp(url string, method string, headers map[string]interface{}, body interface{}) (response []byte)
 	Request(path string, api string, method string, params map[string]interface{}, headers map[string]interface{}, body interface{}) (response interface{})
 	Describe() []byte
 	ParseOrder(interface{}, interface{}) map[string]interface{}
@@ -604,8 +606,10 @@ type Exchange struct {
 	ExchangeInfo
 	ExchangeConfig
 
+	EnableFastHttp bool
 	Client         *http.Client
 	FastHttpClient *fasthttp.Client
+
 	Markets        map[string]*Market
 	MarketsById    map[string]*Market
 	Ids            []string
@@ -622,6 +626,11 @@ type Exchange struct {
 	Options        map[string]interface{}
 	httpExceptions map[string]string
 	Hostname       string
+	requestTimeout time.Duration
+}
+
+func (self *Exchange) SetProxy(proxy string) {
+	self.FastHttpClient.Dial = fasthttpproxy.FasthttpSocksDialer(proxy)
 }
 
 func (self *Exchange) Init(config *ExchangeConfig) (err error) {
@@ -631,10 +640,12 @@ func (self *Exchange) Init(config *ExchangeConfig) (err error) {
 		self.ExchangeConfig = *config
 	}
 
+	self.EnableFastHttp = true
+
 	// 默认超时时间 10 秒
-	netTimeout := 10 * time.Second
+	self.requestTimeout = 10 * time.Second
 	if self.ExchangeConfig.Timeout > 0 {
-		netTimeout = self.ExchangeConfig.Timeout
+		self.requestTimeout = self.ExchangeConfig.Timeout
 	}
 
 	// @ 初始化 net/http 客户端
@@ -644,12 +655,12 @@ func (self *Exchange) Init(config *ExchangeConfig) (err error) {
 	}
 	self.Client = &http.Client{
 		Transport: tr,
-		Timeout:   netTimeout,
+		Timeout:   self.requestTimeout,
 	}
 
 	// @ 初始化 fasthttp 客户端
-	readTimeout := netTimeout
-	writeTimeout := netTimeout
+	readTimeout := self.requestTimeout
+	writeTimeout := self.requestTimeout
 	maxIdleConnDuration, _ := time.ParseDuration("1h")
 	self.FastHttpClient = &fasthttp.Client{
 		ReadTimeout:                   readTimeout,
@@ -914,12 +925,23 @@ func (self *Exchange) Request(
 	url := self.Member(signInfo, "url").(string)
 	// 使用新值覆盖
 	method = self.Member(signInfo, "method").(string)
-	rawResp := self.Child.Fetch(
-		url,
-		method,
-		self.Member(signInfo, "headers").(map[string]interface{}),
-		self.Member(signInfo, "body"),
-	)
+	var rawResp []byte
+
+	if self.EnableFastHttp {
+		rawResp = self.Child.FetchViaFastHttp(
+			url,
+			method,
+			self.Member(signInfo, "headers").(map[string]interface{}),
+			self.Member(signInfo, "body"),
+		)
+	} else {
+		rawResp = self.Child.Fetch(
+			url,
+			method,
+			self.Member(signInfo, "headers").(map[string]interface{}),
+			self.Member(signInfo, "body"),
+		)
+	}
 
 	// 这里忽略错误, 上层做类型断言的时候会产生错误信息
 	json.Unmarshal(rawResp, &response)
@@ -934,6 +956,71 @@ func (self *Exchange) PrepareRequestHeaders(req *http.Request, headers map[strin
 	for k, v := range headers {
 		req.Header.Set(k, v.(string))
 	}
+}
+
+func (self *Exchange) FetchViaFastHttp(url string, method string, headers map[string]interface{}, body interface{}) (response []byte) {
+	var rbody []byte
+	if body != nil {
+		switch body.(type) {
+		case string:
+			rbody = []byte(body.(string))
+		case []byte:
+			rbody = body.([]byte)
+		default:
+			self.RaiseException("InternalError", fmt.Sprintf("Invalid Argument body: %v", body))
+			return
+		}
+	}
+
+	req := fasthttp.AcquireRequest()
+	req.SetRequestURI(url)
+	req.Header.SetMethod(method)
+	req.SetBodyRaw(rbody)
+
+	for k, v := range headers {
+		req.Header.Set(k, v.(string))
+	}
+
+	if self.Verbose {
+		log.Println("Request:", method, url, headers, body)
+	}
+
+	resp := fasthttp.AcquireResponse()
+	err := self.FastHttpClient.DoTimeout(req, resp, self.requestTimeout)
+	fasthttp.ReleaseRequest(req)
+	defer fasthttp.ReleaseResponse(resp)
+	if err != nil {
+		msg := fmt.Sprintf("%v %v %v", method, url, err)
+		if err == fasthttp.ErrTimeout {
+			self.RaiseException("RequestTimeout", msg)
+		} else if err == fasthttp.ErrNoFreeConns {
+			self.RaiseException("NetworkError", msg)
+		} else if err == fasthttp.ErrConnectionClosed {
+			self.RaiseException("NetworkError", msg)
+		} else {
+			errName := reflect.TypeOf(err).String()
+			if errName == "*net.OpError" {
+				// Write and Read errors are not so often and in fact they just mean timeout problems
+				self.RaiseException("RequestTimeout", msg)
+			}
+		}
+		self.RaiseException("ExchangeError", msg)
+	}
+
+	response = resp.Body()
+	strRawResp := string(response)
+
+	if self.Verbose {
+		log.Println("Response:", method, url, resp.StatusCode(), resp.Header.String(), strRawResp)
+	}
+
+	status := fasthttp.StatusMessage(resp.StatusCode())
+	self.Child.HandleErrors(int64(resp.StatusCode()), status, url, method, resp.Header, strRawResp, response, headers, body)
+	if resp.StatusCode() != fasthttp.StatusOK {
+		self.HandleRestErrors(resp.StatusCode(), status, strRawResp, url, method)
+	}
+
+	return
 }
 
 func (self *Exchange) Fetch(url string, method string, headers map[string]interface{}, body interface{}) (response []byte) {
@@ -991,7 +1078,7 @@ func (self *Exchange) Fetch(url string, method string, headers map[string]interf
 	}
 
 	self.Child.HandleErrors(int64(resp.StatusCode), resp.Status, url, method, resp.Header, strRawResp, response, headers, body)
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		self.HandleRestErrors(resp.StatusCode, resp.Status, strRawResp, url, method)
 	}
 
