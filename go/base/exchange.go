@@ -579,6 +579,7 @@ type ExchangeInterface interface {
 
 	FetchCurrencies(params map[string]interface{}) map[string]interface{}
 	ApiFunc(function string, params interface{}, headers map[string]interface{}, body interface{}) (response map[string]interface{})
+	SetHttpLib(lib string) // fasthttp, net/http
 }
 
 type ExchangeInterfaceInternal interface {
@@ -606,7 +607,7 @@ type Exchange struct {
 	ExchangeInfo
 	ExchangeConfig
 
-	EnableFastHttp bool
+	EnableFasthttp bool
 	Client         *http.Client
 	FastHttpClient *fasthttp.Client
 
@@ -629,6 +630,15 @@ type Exchange struct {
 	requestTimeout time.Duration
 }
 
+func (self *Exchange) SetHttpLib(lib string) {
+	switch strings.ToLower(lib) {
+	case "fasthttp":
+		self.EnableFasthttp = true
+	default:
+		self.EnableFasthttp = false
+	}
+}
+
 func (self *Exchange) SetProxy(proxy string) {
 	self.FastHttpClient.Dial = fasthttpproxy.FasthttpSocksDialer(proxy)
 }
@@ -640,7 +650,7 @@ func (self *Exchange) Init(config *ExchangeConfig) (err error) {
 		self.ExchangeConfig = *config
 	}
 
-	self.EnableFastHttp = true
+	self.EnableFasthttp = true
 
 	// 默认超时时间 10 秒
 	self.requestTimeout = 10 * time.Second
@@ -927,7 +937,7 @@ func (self *Exchange) Request(
 	method = self.Member(signInfo, "method").(string)
 	var rawResp []byte
 
-	if self.EnableFastHttp {
+	if self.EnableFasthttp {
 		rawResp, response = self.Child.FetchViaFastHttp(
 			url,
 			method,
