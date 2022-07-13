@@ -650,8 +650,6 @@ func (self *Exchange) Init(config *ExchangeConfig) (err error) {
 		self.ExchangeConfig = *config
 	}
 
-	self.EnableFasthttp = true
-
 	// 默认超时时间 10 秒
 	self.requestTimeout = 10 * time.Second
 	if self.ExchangeConfig.Timeout > 0 {
