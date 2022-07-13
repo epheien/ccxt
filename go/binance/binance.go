@@ -587,7 +587,8 @@ func (self *Binance) ParseOrder(order interface{}, market interface{}) (result m
 			}
 		}
 	}
-	id := self.SafeString(order, "orderId", "")
+	// NOTE: json 解析后的类型为 float64, 转为字符串的时候就不能显示为整数了
+	id := fmt.Sprint(self.SafeInteger(order, "orderId", 0))
 	typ := self.SafeStringLower(order, "type", "")
 	if self.ToBool(typ == "market") {
 		if self.ToBool(price == 0) {
@@ -643,7 +644,7 @@ func (self *Binance) ParseOrder(order interface{}, market interface{}) (result m
 		"id":                 id,
 		"clientOrderId":      clientOrderId,
 		"timestamp":          timestamp,
-		"datetime":           self.Iso8601(timestamp.(int64)),
+		//"datetime":           self.Iso8601(timestamp.(int64)),
 		"lastTradeTimestamp": nil,
 		"symbol":             symbol,
 		"type":               typ,
@@ -686,10 +687,6 @@ func (self *Binance) CreateOrder(symbol string, typ string, side string, amount 
 		params = self.Omit(params, "test")
 	}
 	uppercaseType := strings.ToUpper(typ)
-	validOrderTypes := self.SafeValue(self.Member(market, "info"), "orderTypes", nil)
-	if self.ToBool(!self.ToBool(self.InArray(uppercaseType, validOrderTypes.([]string)))) {
-		self.RaiseException("InvalidOrder", self.Id+" "+typ+" is not a valid order type in "+market.Type+" market "+symbol)
-	}
 	request := map[string]interface{}{
 		"symbol": self.Member(market, "id"),
 		"type":   uppercaseType,
@@ -843,7 +840,7 @@ func (self *Binance) FetchOpenOrders(symbol string, since int64, limit int64, pa
 	} else if self.ToBool(typ == "margin") {
 		method = "sapiGetMarginOpenOrders"
 	}
-	response := self.ApiFunc(method, self.Extend(request, query), nil, nil)
+	response := self.ApiFuncReturnList(method, self.Extend(request, query), nil, nil)
 	return self.ToOrders(self.ParseOrders(response, market, since, limit)), nil
 }
 

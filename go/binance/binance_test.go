@@ -60,9 +60,9 @@ func TestAll(t *testing.T) {
 	//testFetchOrderBook(t)
 	testFetchBalance(t)
 	//order := testCreateOrder(t); _ = order
-	//testFetchOrder(t, "a17f4bd53cc3U6303486880zIyl3lwIZ")
+	//testFetchOrder(t, "11555864984")
 	//testFetchOpenOrders(t)
-	//testCancelOrder(t, order)
+	//testCancelOrder(t, "11555864984")
 }
 
 func testFetchOrderBook(t *testing.T) {
@@ -71,7 +71,7 @@ func testFetchOrderBook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	log.Println("##### FetchOrderBook:", orderbook)
+	log.Println("##### FetchOrderBook:", symbol, orderbook)
 }
 
 func testFetchBalance(t *testing.T) {
@@ -89,7 +89,7 @@ func testCreateOrder(t *testing.T) *base.Order {
 	if err != nil {
 		t.Fatal(err)
 	}
-	log.Println("##### CreateOrder:", order.Id)
+	log.Println("##### CreateOrder:", symbol, order.Id)
 	return order
 }
 
@@ -111,9 +111,9 @@ func testFetchOpenOrders(t *testing.T) {
 	log.Println("##### FetchOpenOrders:", ex.Json(openOrders))
 }
 
-func testCancelOrder(t *testing.T, order *base.Order) {
+func testCancelOrder(t *testing.T, orderId string) {
 	// @ CancelOrder
-	resp, err := ex.CancelOrder(order.Id, symbol, nil)
+	resp, err := ex.CancelOrder(orderId, symbol, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -350,7 +350,12 @@ func (o *Order) InitFromMap(m map[string]interface{}) (result *Order) {
 		case "id":
 			o.Id = v.(string)
 		case "symbol":
-			o.Symbol = v.(string)
+			var ok bool
+			// 有时候这个是 reflect.Value
+			o.Symbol, ok = v.(string)
+			if !ok {
+				o.Symbol = fmt.Sprint(v)
+			}
 		case "type":
 			o.Type = v.(string)
 		case "side":
