@@ -21,6 +21,7 @@ func setup() {
 		log.Fatal(err)
 	}
 	ex.Verbose = true
+	ex.SetProxy("socks5://127.0.0.1:1080")
 	loadApiKey(ex)
 }
 
