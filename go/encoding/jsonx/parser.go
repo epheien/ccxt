@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"text/scanner"
 
-	"eph/exbot/encoding"
+	"github.com/georgexdz/ccxt/go/encoding"
 )
 
 const (
