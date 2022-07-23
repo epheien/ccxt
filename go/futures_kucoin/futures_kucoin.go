@@ -3,6 +3,7 @@ package futures_kucoin
 import (
 	"fmt"
 	. "github.com/georgexdz/ccxt/go/base"
+	"math"
 	"strings"
 )
 
@@ -188,6 +189,9 @@ func (self *FuturesKucoin) LoadMarkets() map[string]*Market {
 
 func (self *FuturesKucoin) Market(symbol string) *Market {
 	li := strings.Split(symbol, "/")
+	if len(li) != 2 {
+		return &Market{}
+	}
 	return &Market{
 		Id:     li[0] + li[1],
 		Symbol: symbol,
@@ -377,6 +381,60 @@ func (self *FuturesKucoin) CancelOrder(id string, symbol string, params map[stri
 	}
 	response = self.ApiFunc("privateDeleteOrdersOrderId", self.Extend(request, params), nil, nil)
 	return response, nil
+}
+
+func (self *FuturesKucoin) FetchMarkPrice(symbol string, params map[string]interface{}) (markPrice *MarkPrice, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = self.PanicToError(e)
+		}
+	}()
+	market := self.Market(symbol)
+	request := map[string]interface{}{
+		"symbol": market.Id,
+	}
+	response := self.ApiFunc("publicGetMarkPriceSymbolCurrent", self.Extend(request, params), nil, nil)
+	data := response["data"]
+	return &MarkPrice{
+		Symbol:     symbol,
+		MarkPrice:  self.SafeFloat(data, "value", 0),
+		IndexPrice: self.SafeFloat(data, "indexPrice", 0),
+		Timestamp:  self.SafeInteger(data, "timePoint", 0),
+		Info:       data,
+	}, nil
+}
+
+func (self *FuturesKucoin) FetchPosition(symbol string, params map[string]interface{}) (result []*Position, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = self.PanicToError(e)
+		}
+	}()
+	market := self.Market(symbol)
+	request := map[string]interface{}{
+		"symbol": market.Id,
+	}
+	response := self.ApiFunc("privateGetPosition", self.Extend(request, params), nil, nil)
+	data := response["data"].(map[string]interface{})
+	amount := self.SafeFloat(data, "currentQty", 0)
+	if amount == 0 {
+		return
+	}
+	pos := &Position{
+		Side:       "long",
+		Leverage:   self.SafeFloat(data, "realLeverage", 0),
+		Amount:     math.Abs(amount),
+		UsedAmount: 0,
+		Price:      self.SafeFloat(data, "avgEntryPrice", 0),
+		RealPnl:    self.SafeFloat(data, "realisedPnl", 0),
+		UnrealPnl:  self.SafeFloat(data, "unrealisedPnl", 0),
+		Info:       data,
+	}
+	if amount < 0 {
+		pos.Side = "short"
+	}
+	result = append(result, pos)
+	return
 }
 
 func (self *FuturesKucoin) Sign(path string, api string, method string, params map[string]interface{}, headers interface{}, body interface{}) (ret interface{}) {

@@ -37,6 +37,8 @@ import (
 	"github.com/satori/go.uuid"
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpproxy"
+
+	"github.com/georgexdz/ccxt/go/encoding/jsonx"
 )
 
 type JSONTime int64
@@ -316,6 +318,26 @@ type Account struct {
 	Account map[string]*Balance
 }
 
+type MarkPrice struct {
+	Symbol     string
+	MarkPrice  float64
+	IndexPrice float64
+	Timestamp  int64
+	Info       interface{}
+}
+
+type Position struct {
+	Symbol     string
+	Side       string
+	Leverage   float64
+	Price      float64
+	Amount     float64
+	UsedAmount float64
+	UnrealPnl  float64
+	RealPnl    float64
+	Info       interface{}
+}
+
 // Order structure
 type Order struct {
 	Id            string      `json:"id"`
@@ -541,6 +563,8 @@ type ExchangeInterface interface {
 	// FetchClosedOrders(symbol *string, since *JSONTime, limit *int, params map[string]interface{}) ([]Order, error)
 	// FetchMyTrades(symbol *string, since *JSONTime, limit *int, params map[string]interface{}) ([]Trade, error)
 	FetchBalance(params map[string]interface{}) (*Account, error)
+	FetchPosition(symbol string, params map[string]interface{}) ([]*Position, error)
+	FetchMarkPrice(symbol string, params map[string]interface{}) (*MarkPrice, error)
 	//FetchCurrencies() (map[string]*Currency, error)
 	FetchMarkets(params map[string]interface{}) []interface{}
 	FetchAccounts(params map[string]interface{}) []interface{}
@@ -1200,6 +1224,10 @@ func (self *Exchange) Iso8601Okex(milliseconds int64) string {
 
 func (self *Exchange) Iso8601(milliseconds int64) string {
 	var seconds int64
+	// 0 表示无效值, 而不是 1970-01-01 这种迷惑性的时间
+	if milliseconds == 0 {
+		return ""
+	}
 	seconds = milliseconds / 1000
 	return time.Unix(seconds, 0).Format("2006-01-02T15:04:05-0700")
 }
@@ -1866,6 +1894,14 @@ func (self *Exchange) AddTwoInterface(a interface{}, b interface{}) interface{} 
 	}
 }
 
+func (self *Exchange) FetchMarkPrice(symbol string, params map[string]interface{}) (*MarkPrice, error) {
+	return nil, fmt.Errorf("%s FetchMarkPrice not supported yet", self.Id)
+}
+
+func (self *Exchange) FetchPosition(symbol string, params map[string]interface{}) ([]*Position, error) {
+	return nil, fmt.Errorf("%s FetchPosition not supported yet", self.Id)
+}
+
 func (self *Exchange) FetchBalance(params map[string]interface{}) (*Account, error) {
 	return nil, fmt.Errorf("%s FetchBalance not supported yet", self.Id)
 }
@@ -2204,8 +2240,8 @@ func (self *Exchange) DeepExtend(args ...interface{}) (result map[string]interfa
 }
 
 func (self *Exchange) InitDescribe() (err error) {
-	// TODO: 使用jsonx
-	err = json.Unmarshal(self.Child.Describe(), &self.DescribeMap)
+	//err = json.Unmarshal(self.Child.Describe(), &self.DescribeMap)
+	err = jsonx.Unmarshal(self.Child.Describe(), &self.DescribeMap, jsonx.WithExtraComma(), jsonx.WithComment())
 	if err != nil {
 		return
 	}
