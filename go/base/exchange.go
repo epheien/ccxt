@@ -305,9 +305,11 @@ type FundingFees struct {
 
 // Balance details
 type Balance struct {
-	Free  float64 `json:"free"`
-	Used  float64 `json:"used"`
-	Total float64 `json:"total"`
+	Free      float64 `json:"free"`
+	Used      float64 `json:"used"`
+	RealPnl   float64 `json:"realPnl"`
+	UnrealPnl float64 `json:"unrealPnl"`
+	Total     float64 `json:"total"`
 }
 
 // Account details
@@ -1682,10 +1684,18 @@ func (self *Exchange) ParseBalance(balances map[string]interface{}) (pAccount *A
 			free := self.SafeFloat(balance, "free", 0)
 			used := self.SafeFloat(balance, "used", 0)
 			total := self.SafeFloat(balance, "total", 0)
+			realPnl := self.SafeFloat(balance, "realPnl", 0)
+			unrealPnl := self.SafeFloat(balance, "unrealPnl", 0)
 			account.Free[currency] = free
 			account.Used[currency] = used
 			account.Total[currency] = total
-			account.Account[currency] = &Balance{Free: free, Used: used, Total: total}
+			account.Account[currency] = &Balance{
+				Free:      free,
+				Used:      used,
+				Total:     total,
+				RealPnl:   realPnl,
+				UnrealPnl: unrealPnl,
+			}
 		}
 	}
 
