@@ -605,6 +605,7 @@ type ExchangeInterface interface {
 
 	FetchCurrencies(params map[string]interface{}) map[string]interface{}
 	ApiFunc(function string, params interface{}, headers map[string]interface{}, body interface{}) (response map[string]interface{})
+	ApiFuncRaw(function string, params map[string]interface{}, headers map[string]interface{}, body interface{}) (response []byte)
 	SetHttpLib(lib string) // fasthttp, net/http
 }
 
