@@ -39,6 +39,7 @@ import (
 	"github.com/valyala/fasthttp/fasthttpproxy"
 
 	"github.com/georgexdz/ccxt/go/encoding/jsonx"
+	"github.com/tidwall/gjson"
 )
 
 type JSONTime int64
@@ -655,6 +656,8 @@ type Exchange struct {
 	httpExceptions map[string]string
 	Hostname       string
 	requestTimeout time.Duration
+
+	DescribeJson gjson.Result
 }
 
 func (self *Exchange) SetHttpLib(lib string) {
@@ -1469,8 +1472,14 @@ func (self *Exchange) SafeInteger(d interface{}, key string, defaultVal int64) (
 				return int64(intVal)
 			} else if intVal, ok := val.(int64); ok {
 				return intVal
-			} else if val, ok := val.(float64); ok {
-				return int64(val)
+			} else if floatVal, ok := val.(float64); ok {
+				return int64(floatVal)
+			} else if v, ok := val.(string); ok {
+				i, err := strconv.ParseInt(v, 10, 64)
+				if err != nil {
+					panic(fmt.Sprintf("SafeInteger error (%s): %s", err.Error(), v))
+				}
+				return i
 			}
 		}
 	}
@@ -1610,6 +1619,10 @@ func (self *Exchange) ImplodeParams(s string, params interface{}) string {
 		}
 	}
 	return s
+}
+
+func (self *Exchange) ImplodeHostname(s string) string {
+	return self.ImplodeParams(s, map[string]interface{}{"hostname": self.Hostname})
 }
 
 var hashers = map[string]func() hash.Hash{
@@ -1850,6 +1863,7 @@ func (self *Exchange) UrlencodeWithArrayRepeat(i interface{}) string {
 	return re.ReplaceAllString(self.Urlencode(i), "")
 }
 
+// NOTE: 编码后的结果都是根据key排序后的
 func (self *Exchange) Urlencode(i interface{}) string {
 	if m, ok := i.(map[string]interface{}); ok {
 		v := urllib.Values{}
@@ -1871,6 +1885,14 @@ func (self *Exchange) Urlencode(i interface{}) string {
 
 func (self *Exchange) Json(i interface{}) string {
 	ret, err := json.Marshal(i)
+	if err == nil {
+		return string(ret)
+	}
+	return ""
+}
+
+func (self *Exchange) JsonIndent(i interface{}) string {
+	ret, err := json.MarshalIndent(i, "", "    ")
 	if err == nil {
 		return string(ret)
 	}
@@ -2024,6 +2046,7 @@ func (self *Exchange) RaiseException(errCls interface{}, msg interface{}) {
 	RaiseException(errCls, msg)
 }
 
+// s 必须为 string
 func (self *Exchange) ThrowExactlyMatchedException(exact interface{}, s interface{}, message interface{}) {
 	if strMap, ok := exact.(map[string]interface{}); ok {
 		if val, ok := strMap[s.(string)]; ok {
@@ -2256,6 +2279,8 @@ func (self *Exchange) InitDescribe() (err error) {
 	if err != nil {
 		return
 	}
+
+	self.DescribeJson = gjson.ParseBytes(self.Child.Describe())
 
 	err = self.DefineRestApi()
 	if err != nil {
