@@ -7,10 +7,11 @@ import (
 	"github.com/georgexdz/ccxt/go/binance"
 	"github.com/georgexdz/ccxt/go/bitmax"
 	"github.com/georgexdz/ccxt/go/bitmax2"
+	"github.com/georgexdz/ccxt/go/bybit"
+	"github.com/georgexdz/ccxt/go/futures_kucoin"
 	"github.com/georgexdz/ccxt/go/kucoin"
 	"github.com/georgexdz/ccxt/go/margin_bitmax"
 	"github.com/georgexdz/ccxt/go/margin_kucoin"
-	"github.com/georgexdz/ccxt/go/futures_kucoin"
 )
 
 type IExchange = base.ExchangeInterface
@@ -21,6 +22,8 @@ func New(exchange string, config *base.ExchangeConfig) (ex IExchange, err error)
 	switch exchange {
 	case "binance":
 		ex, err = binance.New(config)
+	case "bybit":
+		ex, err = bybit.New(config)
 	case "kucoin":
 		ex, err = kucoin.New(config)
 	case "bitmax":
