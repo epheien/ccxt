@@ -61,9 +61,9 @@ func TestAll(t *testing.T) {
 	testFetchOrderBook(t)
 	//testFetchBalance(t)
 	//order := testCreateOrder(t); _ = order
-	//testFetchOrder(t, "11555864984")
-	//testFetchOpenOrders(t)
-	//testCancelOrder(t, "11555864984")
+	//testFetchOrder(t, "1241960757397043712")
+	//openOrders := testFetchOpenOrders(t); _ = openOrders
+	//testCancelOrder(t, "1241960757397043712")
 }
 
 func testFetchOrderBook(t *testing.T) {
@@ -103,13 +103,14 @@ func testFetchOrder(t *testing.T, orderId string) {
 	log.Println("##### FetchOrder:", ex.JsonIndent(o))
 }
 
-func testFetchOpenOrders(t *testing.T) {
+func testFetchOpenOrders(t *testing.T) []*base.Order {
 	// @ FetchOpenOrders
 	openOrders, err := ex.FetchOpenOrders(symbol, 0, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	log.Println("##### FetchOpenOrders:", ex.JsonIndent(openOrders))
+	return openOrders
 }
 
 func testCancelOrder(t *testing.T, orderId string) {
