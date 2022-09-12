@@ -516,12 +516,13 @@ type ApiDecode struct {
 
 // OHLCV open, high, low, close, volume
 type OHLCV struct {
-	Timestamp JSONTime `json:"timestamp"`
-	O         float64  `json:"o"`
-	H         float64  `json:"h"`
-	L         float64  `json:"l"`
-	C         float64  `json:"c"`
-	V         float64  `json:"v"`
+	Timestamp int64       `json:"timestamp"`
+	Open      float64     `json:"open"`
+	High      float64     `json:"high"`
+	Low       float64     `json:"low"`
+	Close     float64     `json:"close"`
+	Volume    float64     `json:"volume"`
+	Info      interface{} `json:"info"`
 }
 
 // UnmarshalJSON accepts both forms for OHLCV:
@@ -548,15 +549,15 @@ func (o *OHLCV) UnmarshalJSON(b []byte) (err error) {
 	if err2 != nil {
 		return fmt.Errorf("UnmarshalJSON: couldn't unmarshal timestamp: %s", err2)
 	}
-	o.O, o.H, o.L, o.C, o.V = f[1], f[2], f[3], f[4], f[5]
+	o.Open, o.High, o.Low, o.Close, o.Volume = f[1], f[2], f[3], f[4], f[5]
 	return nil
 }
 
 // Exchange is a common interface of methods
 type ExchangeInterface interface {
-	// FetchTickers(symbols []string, params map[string]interface{}) (map[string]Ticker, error)
-	// FetchOHLCV(symbol, tf string, since *JSONTime, limit *int, params map[string]interface{}) ([]OHLCV, error)
 	FetchTicker(symbol string, params map[string]interface{}) (*Ticker, error)
+	FetchTickers(symbols []string, params map[string]interface{}) ([]*Ticker, error)
+	FetchOHLCV(symbol, timeframe string, since int64, limit int64, params map[string]interface{}) ([]*OHLCV, error)
 	FetchOrderBook(symbol string, limit int64, params map[string]interface{}) (*OrderBook, error)
 	// FetchL2OrderBook(symbol string, limit *int, params map[string]interface{}) (OrderBook, error)
 	// FetchTrades(symbol string, since *JSONTime, params map[string]interface{}) ([]Trade, error)
@@ -754,6 +755,15 @@ func (self *Exchange) FetchMarkets(params map[string]interface{}) []interface{} 
 func (self *Exchange) FetchTicker(symbol string, params map[string]interface{}) (*Ticker, error) {
 	return nil, errors.New("FetchTicker not supported yet")
 }
+
+func (self *Exchange) FetchTickers(symbols []string, params map[string]interface{}) ([]*Ticker, error) {
+	return nil, errors.New("FetchTickers not supported yet")
+}
+
+func (self *Exchange) FetchOHLCV(symbol, timeframe string, since int64, limit int64, params map[string]interface{}) ([]*OHLCV, error) {
+	return nil, errors.New("FetchOHLCV not supported yet")
+}
+
 func (self *Exchange) FetchOrderBook(symbol string, limit int64, params map[string]interface{}) (*OrderBook, error) {
 	return nil, errors.New("FetchOrderBook not supported yet")
 }
@@ -1469,7 +1479,11 @@ func (self *Exchange) ParseOrderBook(orderBook interface{}, timeStamp int64, bid
 	return nil
 }
 
-func (self *Exchange) SafeInteger(d interface{}, key string, defaultVal int64) (ret int64) {
+func (self *Exchange) SafeInteger(d interface{}, key string, def ...int64) (ret int64) {
+	var defaultVal int64
+	if len(def) > 0 {
+		defaultVal = def[0]
+	}
 	if d, ok := d.(map[string]interface{}); ok {
 		if val, ok := d[key]; ok {
 			if intVal, ok := val.(int); ok {
@@ -1548,7 +1562,11 @@ func (self *Exchange) SafeStringLower(d interface{}, key string, defaultVal stri
 	return strings.ToLower(self.SafeString(d, key, defaultVal))
 }
 
-func (self *Exchange) SafeFloat(d interface{}, key string, defaultVal float64) (result float64) {
+func (self *Exchange) SafeFloat(d interface{}, key string, def ...float64) (result float64) {
+	defaultVal := 0.0
+	if len(def) > 0 {
+		defaultVal = def[0]
+	}
 	if d, ok := d.(map[string]interface{}); ok {
 		if val, ok := d[key]; ok {
 			switch val.(type) {
@@ -2292,6 +2310,10 @@ func (self *Exchange) InitDescribe() (err error) {
 	}
 
 	self.Options = self.DescribeMap["options"].(map[string]interface{})
+	self.Timeframes = map[string]string{}
+	for key, val := range self.DescribeMap["timeframes"].(map[string]interface{}) {
+		self.Timeframes[key] = val.(string)
+	}
 	self.Urls = self.DescribeMap["urls"].(map[string]interface{})
 	if self.DescribeMap["version"] != nil {
 		self.Version = self.DescribeMap["version"].(string)

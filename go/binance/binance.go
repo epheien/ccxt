@@ -561,6 +561,44 @@ func (self *Binance) FetchTicker(symbol string, params map[string]interface{}) (
 	return ticker, nil
 }
 
+func (self *Binance) ParseOHLCV(response interface{}) *OHLCV {
+	data := response.([]interface{})
+	return &OHLCV{
+		Timestamp: ToInteger(data[0]),
+		Open:      ToFloat(data[1]),
+		High:      ToFloat(data[2]),
+		Low:       ToFloat(data[3]),
+		Close:     ToFloat(data[4]),
+		Volume:    ToFloat(data[5]),
+		Info:      response,
+	}
+}
+
+func (self *Binance) FetchOHLCV(symbol, timeframe string, since int64, limit int64, params map[string]interface{}) (klines []*OHLCV, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = self.PanicToError(e)
+		}
+	}()
+	self.LoadMarkets()
+	market := self.Market(symbol)
+	request := map[string]interface{}{
+		"symbol":   self.Member(market, "id"),
+		"interval": self.Timeframes[timeframe],
+	}
+	if since > 0 {
+		request["startTime"] = since
+	}
+	if limit > 0 {
+		request["limit"] = limit
+	}
+	response := self.ApiFuncReturnList("publicGetKlines", self.Extend(request, params), nil, nil)
+	for _, item := range response {
+		klines = append(klines, self.ParseOHLCV(item))
+	}
+	return klines, nil
+}
+
 func (self *Binance) FetchOrderBook(symbol string, limit int64, params map[string]interface{}) (orderBook *OrderBook, err error) {
 	defer func() {
 		if e := recover(); e != nil {
