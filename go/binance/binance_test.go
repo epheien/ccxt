@@ -58,8 +58,9 @@ func loadApiKey(ex *Binance) {
 }
 
 func TestAll(t *testing.T) {
-	//testFetchOrderBook(t)
-	testFetchBalance(t)
+	testFetchOrderBook(t)
+	testFetchTicker(t)
+	//testFetchBalance(t)
 	//order := testCreateOrder(t); _ = order
 	//testFetchOrder(t, "11555864984")
 	//testFetchOpenOrders(t)
@@ -72,7 +73,15 @@ func testFetchOrderBook(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	log.Println("##### FetchOrderBook:", symbol, orderbook)
+	log.Println("##### FetchOrderBook:", symbol, ex.JsonIndent(orderbook))
+}
+
+func testFetchTicker(t *testing.T) {
+	ticker, err := ex.FetchTicker(symbol, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Println("##### FetchTicker:", symbol, ex.JsonIndent(ticker))
 }
 
 func testFetchBalance(t *testing.T) {

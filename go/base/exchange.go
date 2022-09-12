@@ -473,22 +473,22 @@ type Trade struct {
 // Ticker struct
 type Ticker struct {
 	Symbol      string      `json:"symbol"`
+	Timestamp   int64       `json:"timestamp"`
+	Datetime    string      `json:"datetime"`
+	Last        float64     `json:"last"`
 	Ask         float64     `json:"ask"`
 	Bid         float64     `json:"bid"`
+	AskQty      float64     `json:"askQty"`
+	BidQty      float64     `json:"bidQty"`
+	Open        float64     `json:"open"`
 	High        float64     `json:"high"`
 	Low         float64     `json:"low"`
-	Average     float64     `json:"average"`
+	Close       float64     `json:"close"`
 	BaseVolume  float64     `json:"baseVolume"`
 	QuoteVolume float64     `json:"quoteVolume"`
+	Vwap        float64     `json:"vwap"`
 	Change      float64     `json:"change"`
-	Open        float64     `json:"open"`
-	Close       float64     `json:"close"`
-	First       float64     `json:"first"`
-	Last        float64     `json:"last"`
 	Percentage  float64     `json:"percentage"`
-	VWAP        float64     `json:"vwap"`
-	Timestamp   JSONTime    `json:"timestamp"`
-	Datetime    string      `json:"datetime"`
 	Info        interface{} `json:"info"`
 }
 
@@ -555,8 +555,8 @@ func (o *OHLCV) UnmarshalJSON(b []byte) (err error) {
 // Exchange is a common interface of methods
 type ExchangeInterface interface {
 	// FetchTickers(symbols []string, params map[string]interface{}) (map[string]Ticker, error)
-	// FetchTicker(symbol string, params map[string]interface{}) (Ticker, error)
 	// FetchOHLCV(symbol, tf string, since *JSONTime, limit *int, params map[string]interface{}) ([]OHLCV, error)
+	FetchTicker(symbol string, params map[string]interface{}) (*Ticker, error)
 	FetchOrderBook(symbol string, limit int64, params map[string]interface{}) (*OrderBook, error)
 	// FetchL2OrderBook(symbol string, limit *int, params map[string]interface{}) (OrderBook, error)
 	// FetchTrades(symbol string, since *JSONTime, params map[string]interface{}) ([]Trade, error)
@@ -749,6 +749,10 @@ func (self *Exchange) Describe() []byte {
 
 func (self *Exchange) FetchMarkets(params map[string]interface{}) []interface{} {
 	return nil
+}
+
+func (self *Exchange) FetchTicker(symbol string, params map[string]interface{}) (*Ticker, error) {
+	return nil, errors.New("FetchTicker not supported yet")
 }
 func (self *Exchange) FetchOrderBook(symbol string, limit int64, params map[string]interface{}) (*OrderBook, error) {
 	return nil, errors.New("FetchOrderBook not supported yet")

@@ -518,6 +518,49 @@ func (self *Binance) FetchBalance(params map[string]interface{}) (balanceResult 
 	return self.ParseBalance(result), nil
 }
 
+func (self *Binance) ParseTicker(response interface{}) (ticker *Ticker) {
+	timestamp := self.SafeInteger(response, "closeTime")
+	datetime := self.Iso8601(timestamp)
+	last := self.SafeFloat(response, "lastPrice")
+	ticker = &Ticker{
+		Timestamp:   timestamp,
+		Datetime:    datetime,
+		Last:        last,
+		Ask:         self.SafeFloat(response, "askPrice"),
+		AskQty:      self.SafeFloat(response, "askQty"),
+		Bid:         self.SafeFloat(response, "bidPrice"),
+		BidQty:      self.SafeFloat(response, "bidQty"),
+		Open:        self.SafeFloat(response, "openPrice"),
+		High:        self.SafeFloat(response, "highPrice"),
+		Low:         self.SafeFloat(response, "lowPrice"),
+		Close:       last,
+		BaseVolume:  self.SafeFloat(response, "volume"),
+		QuoteVolume: self.SafeFloat(response, "quoteVolume"),
+		Change:      self.SafeFloat(response, "priceChange"),
+		Percentage:  self.SafeFloat(response, "priceChangePercent"),
+		Vwap:        self.SafeFloat(response, "weightedAvgPrice"),
+		Info:        response,
+	}
+	return
+}
+
+func (self *Binance) FetchTicker(symbol string, params map[string]interface{}) (ticker *Ticker, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = self.PanicToError(e)
+		}
+	}()
+	self.LoadMarkets()
+	market := self.Market(symbol)
+	request := map[string]interface{}{
+		"symbol": self.Member(market, "id"),
+	}
+	response := self.ApiFunc("publicGetTicker24hr", self.Extend(request, params), nil, nil)
+	ticker = self.ParseTicker(response)
+	ticker.Symbol = symbol
+	return ticker, nil
+}
+
 func (self *Binance) FetchOrderBook(symbol string, limit int64, params map[string]interface{}) (orderBook *OrderBook, err error) {
 	defer func() {
 		if e := recover(); e != nil {
@@ -609,23 +652,23 @@ func (self *Binance) ParseOrder(order interface{}, market interface{}) (result m
 	var trades interface{}
 	// TODO, fetchOrder返回的fee 没用到，没必要实现这么复杂
 	/*
-	fills := self.SafeValue(order, "fills", nil)
-	if self.ToBool(!self.TestNil(fills)) {
-		trades = self.ParseTrades(fills, market)
-		numTrades := self.Length(trades)
-		if self.ToBool(numTrades > 0) {
-			cost = self.Member(self.Member(trades, 0), "cost").(float64)
-			fee = map[string]interface{}{
-				"cost":     self.Member(self.Member(self.Member(trades, 0), "fee"), "cost"),
-				"currency": self.Member(self.Member(self.Member(trades, 0), "fee"), "currency"),
-			}
-			for i := 1; i < self.Length(trades); i++ {
-				cost += self.Member(self.Member(trades, i), "cost").(float64)
-				fee["cost"] = fee["cost"].(float64) + self.Member(self.Member(self.Member(trades, i), "fee"), "cost").(float64)
+		fills := self.SafeValue(order, "fills", nil)
+		if self.ToBool(!self.TestNil(fills)) {
+			trades = self.ParseTrades(fills, market)
+			numTrades := self.Length(trades)
+			if self.ToBool(numTrades > 0) {
+				cost = self.Member(self.Member(trades, 0), "cost").(float64)
+				fee = map[string]interface{}{
+					"cost":     self.Member(self.Member(self.Member(trades, 0), "fee"), "cost"),
+					"currency": self.Member(self.Member(self.Member(trades, 0), "fee"), "currency"),
+				}
+				for i := 1; i < self.Length(trades); i++ {
+					cost += self.Member(self.Member(trades, i), "cost").(float64)
+					fee["cost"] = fee["cost"].(float64) + self.Member(self.Member(self.Member(trades, i), "fee"), "cost").(float64)
+				}
 			}
 		}
-	}
-	 */
+	*/
 	var average interface{}
 	if self.ToBool(!self.TestNil(cost)) {
 		if self.ToBool(filled) {
@@ -640,10 +683,10 @@ func (self *Binance) ParseOrder(order interface{}, market interface{}) (result m
 	}
 	clientOrderId := self.SafeString(order, "clientOrderId", "")
 	return map[string]interface{}{
-		"info":               order,
-		"id":                 id,
-		"clientOrderId":      clientOrderId,
-		"timestamp":          timestamp,
+		"info":          order,
+		"id":            id,
+		"clientOrderId": clientOrderId,
+		"timestamp":     timestamp,
 		//"datetime":           self.Iso8601(timestamp.(int64)),
 		"lastTradeTimestamp": nil,
 		"symbol":             symbol,
@@ -708,11 +751,11 @@ func (self *Binance) CreateOrder(symbol string, typ string, side string, amount 
 			quoteOrderQty := self.SafeFloat(params, "quoteOrderQty", 0)
 			precision := self.Member(self.Member(market, "precision"), "price")
 			if self.ToBool(!self.TestNil(quoteOrderQty)) {
-				x, _:= DecimalToPrecision(quoteOrderQty, Truncate, precision.(int), DecimalPlaces, NoPadding)
+				x, _ := DecimalToPrecision(quoteOrderQty, Truncate, precision.(int), DecimalPlaces, NoPadding)
 				self.SetValue(request, "quoteOrderQty", x)
 				params = self.Omit(params, "quoteOrderQty")
 			} else if self.ToBool(!self.TestNil(price)) {
-				x, _ :=DecimalToPrecision(amount*price, Truncate, precision.(int), DecimalPlaces, NoPadding)
+				x, _ := DecimalToPrecision(amount*price, Truncate, precision.(int), DecimalPlaces, NoPadding)
 				self.SetValue(request, "quoteOrderQty", x)
 			} else {
 				quantityIsRequired = true
@@ -915,13 +958,13 @@ func (self *Binance) Sign(path string, api string, method string, params map[str
 				"recvWindow": self.Member(self.Options, "recvWindow"),
 			}, params))
 		} else {
-		/*else if self.ToBool(path == "batchOrders") {
-			query = self.Rawencode(self.Extend(map[string]interface{}{
-				"timestamp":  self.Nonce(),
-				"recvWindow": self.Member(self.Options, "recvWindow"),
-			}, params))
-		}
-		*/
+			/*else if self.ToBool(path == "batchOrders") {
+				query = self.Rawencode(self.Extend(map[string]interface{}{
+					"timestamp":  self.Nonce(),
+					"recvWindow": self.Member(self.Options, "recvWindow"),
+				}, params))
+			}
+			*/
 			query = self.Urlencode(self.Extend(map[string]interface{}{
 				"timestamp":  self.Nonce(),
 				"recvWindow": self.Member(self.Options, "recvWindow"),
