@@ -1455,7 +1455,7 @@ func NestedMapLookup(m map[string]interface{}, ks ...string) (rval interface{}, 
 	}
 }
 
-func (self *Exchange) ParseOrderBook(orderBook interface{}, timeStamp int64, bidsKey string, asksKey string, priceKey int64, amountKey int64) *OrderBook {
+func (self *Exchange) ParseOrderBook(orderBook interface{}, timestamp int64, bidsKey string, asksKey string, priceKey int64, amountKey int64) *OrderBook {
 	var result OrderBook
 
 	if orderBookMap, ok := orderBook.(map[string]interface{}); ok {
@@ -1471,8 +1471,10 @@ func (self *Exchange) ParseOrderBook(orderBook interface{}, timeStamp int64, bid
 				SortSliceByIndex(result.Asks, 0, false)
 			}
 		}
-		result.Timestamp = timeStamp
-		// result.Datetime = time.Unix(timeStamp/1000, 0).Format("2006-01-02 15:04:05")
+		result.Timestamp = timestamp
+		if result.Timestamp > 0 {
+			result.Datetime = self.Iso8601(result.Timestamp)
+		}
 
 		return &result
 	}
@@ -1536,7 +1538,11 @@ func (self *Exchange) NumberToString(v interface{}) string {
 	return NumberToString(v.(float64))
 }
 
-func (self *Exchange) SafeString(d interface{}, key string, defaultVal interface{}) string {
+func (self *Exchange) SafeString(d interface{}, key string, def ...string) string {
+	defaultVal := ""
+	if len(def) > 0 {
+		defaultVal = def[0]
+	}
 	if d, ok := d.(map[string]interface{}); ok {
 		val := d[key]
 		if val != nil {
@@ -1555,7 +1561,7 @@ func (self *Exchange) SafeString(d interface{}, key string, defaultVal interface
 			return fmt.Sprintf("%v", val)
 		}
 	}
-	return defaultVal.(string)
+	return defaultVal
 }
 
 func (self *Exchange) SafeStringLower(d interface{}, key string, defaultVal string) string {
@@ -1669,6 +1675,8 @@ func Hash(payload, algo, encoding string) (string, error) {
 }
 
 // HMAC encodes the payload based on the available hashing algo
+// algo: "md5", "sha512", "sha384", "sha256", "sha1"
+// encoding: "hex", "base64"
 func (self *Exchange) Hmac(payload, key, algo, encoding string) string {
 	if hashers[algo] == nil {
 		self.RaiseException("InternalError", fmt.Sprintf("HMAC: unsupported hashing algo \"%s\"", algo))
@@ -2068,18 +2076,18 @@ func (self *Exchange) RaiseException(errCls interface{}, msg interface{}) {
 	RaiseException(errCls, msg)
 }
 
-// s 必须为 string
-func (self *Exchange) ThrowExactlyMatchedException(exact interface{}, s interface{}, message interface{}) {
+// key 必须为 string
+func (self *Exchange) ThrowExactlyMatchedException(exact interface{}, key interface{}, message interface{}) {
 	if strMap, ok := exact.(map[string]interface{}); ok {
-		if val, ok := strMap[s.(string)]; ok {
+		if val, ok := strMap[key.(string)]; ok {
 			self.RaiseException(val, message)
 		}
 	}
 }
 
-func (self *Exchange) FindBroadlyMatchedKey(broad interface{}, s interface{}) string {
+func (self *Exchange) FindBroadlyMatchedKey(broad interface{}, key interface{}) string {
 	for k, _ := range broad.(map[string]interface{}) {
-		if strings.Contains(s.(string), k) {
+		if strings.Contains(key.(string), k) {
 			return k
 		}
 	}

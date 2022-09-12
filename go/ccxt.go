@@ -5,6 +5,7 @@ import (
 	"github.com/georgexdz/ccxt/go/ascendex"
 	"github.com/georgexdz/ccxt/go/base"
 	"github.com/georgexdz/ccxt/go/binance"
+	"github.com/georgexdz/ccxt/go/futures_binance"
 	"github.com/georgexdz/ccxt/go/bitmax"
 	"github.com/georgexdz/ccxt/go/bitmax2"
 	"github.com/georgexdz/ccxt/go/bybit"
@@ -38,6 +39,8 @@ func New(exchange string, config *base.ExchangeConfig) (ex IExchange, err error)
 		ex, err = margin_kucoin.New(config)
 	case "futures_kucoin", "futures_kumex":
 		ex, err = futures_kucoin.New(config)
+	case "futures_binance":
+		ex, err = futures_binance.New(config)
 	default:
 		err = fmt.Errorf("exchange %s is not supported", exchange)
 	}
