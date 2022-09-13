@@ -32,6 +32,7 @@ func (self *FuturesBinance) Describe() []byte {
     "name": "Binance",
     "countries": "JP",
     "rateLimit": 500,
+	"version": "v1",
     "has": {
         "CORS": false,
         "fetchBidsAsks": true,
@@ -63,8 +64,8 @@ func (self *FuturesBinance) Describe() []byte {
     "urls": {
         "logo": "https://user-images.githubusercontent.com/1294454/29604020-d5483cdc-87ee-11e7-94c7-d1a8d9169293.jpg",
         "api": {
-            "public": "https://fapi.binance.com/fapi/v1",
-            "private": "https://fapi.binance.com/fapi/v1"
+            "public": "https://fapi.binance.com/fapi",
+            "private": "https://fapi.binance.com/fapi"
         },
         "www": "https://www.binance.com",
         "doc": "https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md",
@@ -99,6 +100,9 @@ func (self *FuturesBinance) Describe() []byte {
                 "balance",
                 "account",
                 "positionRisk",
+                "v2/balance",
+                "v2/account",
+                "v2/positionRisk",
                 "userTrades",
                 "income"
             ],
@@ -106,7 +110,6 @@ func (self *FuturesBinance) Describe() []byte {
                 "order",
                 "order/test",
                 "leverage",
-                "positionRisk",
                 "listenKey"
             ],
             "delete": [
@@ -172,6 +175,35 @@ func (self *FuturesBinance) Market(symbol string) *Market {
 }
 
 func (self *FuturesBinance) FetchBalance(params map[string]interface{}) (balanceResult *Account, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = self.PanicToError(e)
+		}
+	}()
+
+	response := self.ApiFunc("privateGetV2Account", params, nil, nil)
+
+	result := map[string]interface{}{
+		"info": response,
+	}
+
+	balances := response["assets"].([]interface{})
+	for _, balance := range balances {
+		account := self.Account()
+		total := self.SafeFloat(balance, "marginBalance")
+		free := self.SafeFloat(balance, "availableBalance")
+		account["total"] = total
+		account["free"] = free
+		account["used"] = total - free
+		account["unrealPnl"] = self.SafeFloat(balance, "unrealizedProfit")
+		currency := self.SafeString(balance, "asset")
+		result[currency] = account
+	}
+
+	return self.ParseBalance(result), nil
+}
+
+func (self *FuturesBinance) FetchBalanceV1(params map[string]interface{}) (balanceResult *Account, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = self.PanicToError(e)
@@ -448,7 +480,7 @@ func (self *FuturesBinance) FetchPosition(symbol string, params map[string]inter
 	request := map[string]interface{}{}
 	market := self.Market(symbol)
 	request["symbol"] = market.Id
-	response := self.ApiFuncReturnList("privateGetPositionRisk", self.Extend(request, params), nil, nil)
+	response := self.ApiFuncReturnList("privateGetV2PositionRisk", self.Extend(request, params), nil, nil)
 
 	for _, item := range response {
 		if self.SafeString(item, "symbol") != market.Id {
@@ -475,7 +507,12 @@ func (self *FuturesBinance) FetchPosition(symbol string, params map[string]inter
 }
 
 func (self *FuturesBinance) Sign(path string, api string, method string, params map[string]interface{}, headers interface{}, body interface{}) (ret interface{}) {
-	url := self.Urls["api"].(map[string]interface{})[api].(string) + "/" + path
+	var url string
+	if strings.HasPrefix(path, "v2/") {
+		url = self.Urls["api"].(map[string]interface{})[api].(string) + "/" + path
+	} else {
+		url = self.Urls["api"].(map[string]interface{})[api].(string) + fmt.Sprintf("/%s/%s", self.Version, path)
+	}
 	if path == "userDataStream" {
 		body = self.Urlencode(params)
 		headers = map[string]interface{}{
