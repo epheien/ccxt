@@ -571,7 +571,7 @@ type ExchangeInterface interface {
 	// FetchClosedOrders(symbol *string, since *JSONTime, limit *int, params map[string]interface{}) ([]Order, error)
 	// FetchMyTrades(symbol *string, since *JSONTime, limit *int, params map[string]interface{}) ([]Trade, error)
 	FetchBalance(params map[string]interface{}) (*Account, error)
-	FetchPosition(symbol string, params map[string]interface{}) ([]*Position, error)
+	FetchPositions(symbol string, params map[string]interface{}) ([]*Position, error)
 	FetchMarkPrice(symbol string, params map[string]interface{}) (*MarkPrice, error)
 	//FetchCurrencies() (map[string]*Currency, error)
 	FetchMarkets(params map[string]interface{}) []interface{}
@@ -1966,8 +1966,8 @@ func (self *Exchange) FetchMarkPrice(symbol string, params map[string]interface{
 	return nil, fmt.Errorf("%s FetchMarkPrice not supported yet", self.Id)
 }
 
-func (self *Exchange) FetchPosition(symbol string, params map[string]interface{}) ([]*Position, error) {
-	return nil, fmt.Errorf("%s FetchPosition not supported yet", self.Id)
+func (self *Exchange) FetchPositions(symbol string, params map[string]interface{}) ([]*Position, error) {
+	return nil, fmt.Errorf("%s FetchPositions not supported yet", self.Id)
 }
 
 func (self *Exchange) FetchBalance(params map[string]interface{}) (*Account, error) {

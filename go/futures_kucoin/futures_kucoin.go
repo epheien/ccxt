@@ -404,7 +404,7 @@ func (self *FuturesKucoin) FetchMarkPrice(symbol string, params map[string]inter
 	}, nil
 }
 
-func (self *FuturesKucoin) FetchPosition(symbol string, params map[string]interface{}) (result []*Position, err error) {
+func (self *FuturesKucoin) FetchPositions(symbol string, params map[string]interface{}) (result []*Position, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = self.PanicToError(e)

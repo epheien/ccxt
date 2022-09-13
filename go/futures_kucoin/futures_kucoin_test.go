@@ -65,7 +65,7 @@ func TestAll(t *testing.T) {
 	//testFetchOpenOrders(t)
 	//testCancelOrder(t, "62db8da5e97a730001c02fc5")
 	//testFetchMarkPrice(t)
-	//testFetchPosition(t)
+	//testFetchPositions(t)
 }
 
 func testFetchOrderBook(t *testing.T) {
@@ -132,11 +132,11 @@ func testFetchMarkPrice(t *testing.T) {
 	log.Println("##### FetchMarkPrice:", resp)
 }
 
-func testFetchPosition(t *testing.T) {
+func testFetchPositions(t *testing.T) {
 	// @ FetchMarkPrice
-	resp, err := ex.FetchPosition(symbol, nil)
+	resp, err := ex.FetchPositions(symbol, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	log.Println("##### FetchPosition:", ex.Json(resp))
+	log.Println("##### FetchPositions:", ex.Json(resp))
 }

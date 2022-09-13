@@ -473,7 +473,7 @@ func (self *FuturesBinance) FetchMarkPrice(symbol string, params map[string]inte
 	}, nil
 }
 
-func (self *FuturesBinance) FetchPosition(symbol string, params map[string]interface{}) (result []*Position, err error) {
+func (self *FuturesBinance) FetchPositions(symbol string, params map[string]interface{}) (result []*Position, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = self.PanicToError(e)
