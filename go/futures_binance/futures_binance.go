@@ -354,6 +354,7 @@ func (self *FuturesBinance) ParseOrder(order interface{}, market interface{}) (r
 	amount := self.SafeFloat(order, "origQty", 0)
 	filled := self.SafeFloat(order, "executedQty", 0)
 	status := self.ParseOrderStatus(self.SafeString(order, "status"))
+	average := self.SafeFloat(order, "avgPrice")
 	return map[string]interface{}{
 		"clientOrderId": clientOid,
 		"id":            orderId,
@@ -364,6 +365,7 @@ func (self *FuturesBinance) ParseOrder(order interface{}, market interface{}) (r
 		"price":         price,
 		"filled":        filled,
 		"remaining":     amount - filled,
+		"average":       average,
 		"timestamp":     timestamp,
 		"datetime":      datetime,
 		"status":        status,

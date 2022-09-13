@@ -356,6 +356,7 @@ type Order struct {
 	Amount        float64     `json:"amount"`
 	Filled        float64     `json:"filled"`
 	Remaining     float64     `json:"remaining"`
+	Average       float64     `json:"average"`
 	Fee           float64     `json:"fee"`
 	Info          interface{} `json:"info"`
 }
@@ -404,6 +405,8 @@ func (o *Order) InitFromMap(m map[string]interface{}) (result *Order) {
 		case "fee":
 			// NOTE: fee 有可能是字典也可能是浮点, 暂时无视
 			//o.Fee = v.(float64)
+		case "average":
+			o.Average = v.(float64)
 		case "status":
 			o.Status = v.(string)
 		case "clientOrderId":
