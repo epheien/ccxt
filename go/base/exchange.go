@@ -319,6 +319,7 @@ type Account struct {
 	Used    map[string]float64 `json:"used"`
 	Total   map[string]float64 `json:"total"`
 	Account map[string]*Balance
+	Info    interface{}
 }
 
 type MarkPrice struct {
@@ -1724,6 +1725,7 @@ func (self *Exchange) ParseBalance(balances map[string]interface{}) (pAccount *A
 	account.Free = make(map[string]float64)
 	account.Used = make(map[string]float64)
 	account.Total = make(map[string]float64)
+	account.Info = balances["info"]
 
 	account.Account = map[string]*Balance{}
 	for currency, balance := range self.Omit(balances, []string{"info", "free", "used", "total"}) {
