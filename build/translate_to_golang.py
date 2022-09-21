@@ -133,7 +133,7 @@ def read_code_str(ex):
 
 
 FUNC_ARG_MAP = {
-    'createOrder': 'symbol string, typ string, side string, amount float64, price float64, params map[string]interface{}',
+    'createOrder': 'symbol string, type_ string, side string, amount float64, price float64, params map[string]interface{}',
     'fetchBalance': 'params map[string]interface{}',
     'cancelOrder': 'id string, symbol string, params map[string]interface{}',
     'fetchOpenOrders': 'symbol string, since int64, limit int64, params map[string]interface{}',
@@ -153,10 +153,10 @@ FUNC_ARG_MAP = {
     'ParseOrderSide': 'side string',
     'parseMarket': 'market interface{}',
     'parseMarkets': 'markets []interface{}',
-    'fetchMarketsByType': 'typ string, params map[string]interface{}',
+    'fetchMarketsByType': 'type_ string, params map[string]interface{}',
     'getPathAuthenticationType': 'path string',
     'parseOrderSide': 'side string',
-    'parseBalanceByType': 'typ string, response interface{}',
+    'parseBalanceByType': 'type_ string, response interface{}',
     'parseAccountBalance': 'response interface{}',
     'parseMarginBalance': 'response interface{}',
     'parseFuturesBalance': 'response interface{}',
@@ -359,7 +359,7 @@ def Literal(syntax, info={}):
 def Identifier(syntax, info={}):
     m = {
         'undefined': 'nil',
-        'type': 'typ',
+        'type': 'type_',
     }
     return m.get(syntax.name, syntax.name)
 
