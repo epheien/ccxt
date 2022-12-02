@@ -694,8 +694,19 @@ func (self *Exchange) Init(config *ExchangeConfig) (err error) {
 	// @ 初始化 net/http 客户端
 	tr := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+			DualStack: true,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
 		//TLSClientConfig: &tls.Config{InsecureSkipVerify: false},
 	}
+
 	self.Client = &http.Client{
 		Transport: tr,
 		Timeout:   self.requestTimeout,
