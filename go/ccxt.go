@@ -5,12 +5,13 @@ import (
 	"github.com/georgexdz/ccxt/go/ascendex"
 	"github.com/georgexdz/ccxt/go/base"
 	"github.com/georgexdz/ccxt/go/binance"
-	"github.com/georgexdz/ccxt/go/futures_binance"
 	"github.com/georgexdz/ccxt/go/bitmax"
 	"github.com/georgexdz/ccxt/go/bitmax2"
 	"github.com/georgexdz/ccxt/go/bybit"
+	"github.com/georgexdz/ccxt/go/futures_binance"
 	"github.com/georgexdz/ccxt/go/futures_kucoin"
 	"github.com/georgexdz/ccxt/go/kucoin"
+	"github.com/georgexdz/ccxt/go/kucoin_hf"
 	"github.com/georgexdz/ccxt/go/margin_bitmax"
 	"github.com/georgexdz/ccxt/go/margin_kucoin"
 )
@@ -27,6 +28,8 @@ func New(exchange string, config *base.ExchangeConfig) (ex IExchange, err error)
 		ex, err = bybit.New(config)
 	case "kucoin":
 		ex, err = kucoin.New(config)
+	case "kucoin_hf":
+		ex, err = kucoin_hf.New(config)
 	case "bitmax":
 		ex, err = bitmax.New(config)
 	case "bitmax2":

@@ -1434,10 +1434,10 @@ func (self *Exchange) SafeList(m map[string]interface{}, key string, defaultVal 
 	return defaultVal
 }
 
-func (self *Exchange) SafeValue(m interface{}, key interface{}, args ...interface{}) (val interface{}) {
+func (self *Exchange) SafeValue(m interface{}, key interface{}, defaultVal ...interface{}) (val interface{}) {
 	var def interface{}
-	if len(args) > 0 {
-		def = args[0]
+	if len(defaultVal) > 0 {
+		def = defaultVal[0]
 	}
 
 	switch key.(type) {
