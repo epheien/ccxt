@@ -1214,11 +1214,17 @@ func (self *Exchange) ApiFuncDecode(function string) (path string, api string, m
 
 func (self *Exchange) ApiFunc(function string, params interface{}, headers map[string]interface{}, body interface{}) (result map[string]interface{}) {
 	path, api, method := self.Child.ApiFuncDecode(function)
+	if params == nil {
+		params = map[string]interface{}{}
+	}
 	return self.Child.Request(path, api, method, params.(map[string]interface{}), headers, body).(map[string]interface{})
 }
 
 func (self *Exchange) ApiFuncReturnList(function string, params interface{}, headers map[string]interface{}, body interface{}) (result []interface{}) {
 	path, api, method := self.Child.ApiFuncDecode(function)
+	if params == nil {
+		params = map[string]interface{}{}
+	}
 	return self.Child.Request(path, api, method, params.(map[string]interface{}), headers, body).([]interface{})
 }
 
