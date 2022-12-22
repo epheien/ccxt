@@ -157,6 +157,17 @@ type Urls struct {
 	Fees StringSlice `json:"fees"`
 }
 
+// status = {
+//     'status': 'ok',
+//     'updated': None,
+//     'eta': None,
+//     'url': None,
+// }
+type ExchangeStatus struct {
+	Status  string // "ok", "maintenance"
+	Updated int64  // 更新时间戳?
+}
+
 // Exception takes the string and applies the error method
 type Exception map[string]error
 
@@ -563,6 +574,7 @@ type ExchangeInterface interface {
 	FetchTickers(symbols []string, params map[string]interface{}) ([]*Ticker, error)
 	FetchOHLCV(symbol, timeframe string, since int64, limit int64, params map[string]interface{}) ([]*OHLCV, error)
 	FetchOrderBook(symbol string, limit int64, params map[string]interface{}) (*OrderBook, error)
+	FetchStatus(params map[string]interface{}) (*ExchangeStatus, error) // 默认实现为返回 ok 状态
 	// FetchL2OrderBook(symbol string, limit *int, params map[string]interface{}) (OrderBook, error)
 	// FetchTrades(symbol string, since *JSONTime, params map[string]interface{}) ([]Trade, error)
 	FetchOrder(id string, symbol string, params map[string]interface{}) (*Order, error)
@@ -781,6 +793,10 @@ func (self *Exchange) FetchOHLCV(symbol, timeframe string, since int64, limit in
 
 func (self *Exchange) FetchOrderBook(symbol string, limit int64, params map[string]interface{}) (*OrderBook, error) {
 	return nil, errors.New("FetchOrderBook not supported yet")
+}
+
+func (self *Exchange) FetchStatus(params map[string]interface{}) (*ExchangeStatus, error) {
+	return &ExchangeStatus{Status: "ok", Updated: self.Milliseconds()}, nil
 }
 
 func (self *Exchange) Sign(path string, api string, method string, params map[string]interface{}, headers interface{}, body interface{}) interface{} {
