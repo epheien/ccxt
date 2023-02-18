@@ -10,6 +10,7 @@ import (
 	"github.com/georgexdz/ccxt/go/bybit"
 	"github.com/georgexdz/ccxt/go/futures_binance"
 	"github.com/georgexdz/ccxt/go/futures_kucoin"
+	"github.com/georgexdz/ccxt/go/gateio"
 	"github.com/georgexdz/ccxt/go/kucoin"
 	"github.com/georgexdz/ccxt/go/kucoin_hf"
 	"github.com/georgexdz/ccxt/go/margin_bitmax"
@@ -40,6 +41,8 @@ func New(exchange string, config *base.ExchangeConfig) (ex IExchange, err error)
 		ex, err = margin_bitmax.New(config)
 	case "margin_kucoin":
 		ex, err = margin_kucoin.New(config)
+	case "gateio", "gateio4":
+		ex, err = gateio.New(config)
 	case "futures_kucoin", "futures_kumex":
 		ex, err = futures_kucoin.New(config)
 	case "futures_binance":
