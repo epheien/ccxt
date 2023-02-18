@@ -194,6 +194,45 @@ func (self *Gateio) FetchBalance(params map[string]interface{}) (balanceResult *
 	return self.ParseBalance(result), nil
 }
 
+func (self *Gateio) CreateOrder(symbol string, _type string, side string, amount float64, price float64, params map[string]interface{}) (result *Order, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = self.PanicToError(e)
+		}
+	}()
+	if _type != "limit" {
+		self.RaiseException("ExchangeError", self.Id+" allows limit orders only")
+	}
+	marketId := self.MarketId(symbol)
+	request := map[string]interface{}{
+		"account":       self.Options["account"],
+		"currency_pair": marketId,
+		"side":          side,
+		"price":         self.Float64ToString(price),
+		"amount":        self.Float64ToString(amount),
+	}
+	response := self.ApiFunc("privatePostSpotOrders", self.Extend(request, params), nil, nil)
+	data := response
+	timestamp := self.SafeInteger(response, "create_time_ms")
+	order := map[string]interface{}{
+		"id":        self.SafeString(data, "id"),
+		"symbol":    symbol,
+		"type":      _type,
+		"side":      side,
+		"price":     price,
+		"amount":    amount,
+		"cost":      nil,
+		"filled":    nil,
+		"remaining": nil,
+		"timestamp": timestamp,
+		"datetime":  self.Iso8601(timestamp),
+		"fee":       nil,
+		"status":    "open",
+		"info":      data,
+	}
+	return self.ToOrder(order), nil
+}
+
 func (self *Gateio) genSign(method, url, query, body string) map[string]interface{} {
 	timestamp := self.Milliseconds() / 1000
 	m := sha512.New()
@@ -229,8 +268,8 @@ func (self *Gateio) Sign(path string, api string, method string, params map[stri
 				url += "?" + self.Urlencode(query)
 			}
 		} else {
-			bodyString := self.Json(query)
-			headers = self.genSign(method, u.Path, "", bodyString)
+			body = self.Json(query)
+			headers = self.genSign(method, u.Path, "", body.(string))
 		}
 		headers.(map[string]interface{})["Content-Type"] = "application/json"
 	}

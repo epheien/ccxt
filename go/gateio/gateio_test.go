@@ -109,7 +109,7 @@ func testCreateOrder(t *testing.T) *base.Order {
 	if err != nil {
 		t.Fatal(err)
 	}
-	log.Println("##### CreateOrder:", symbol, order.Id)
+	log.Println("##### CreateOrder:", symbol, ex.JsonIndent(order))
 	return order
 }
 
