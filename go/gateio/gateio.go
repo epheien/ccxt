@@ -233,6 +233,113 @@ func (self *Gateio) CreateOrder(symbol string, _type string, side string, amount
 	return self.ToOrder(order), nil
 }
 
+func (self *Gateio) ParseOrderStatus(status string) string {
+	// NOTE: 类型必须为 map[string]interface{}, 否则无法使用 SafeString
+	statuses := map[string]interface{}{
+		"open":      "open",
+		"closed":    "closed",
+		"cancelled": "canceled",
+	}
+	return self.SafeString(statuses, status, status)
+}
+
+func (self *Gateio) ParseOrder(order interface{}, market interface{}) (result map[string]interface{}) {
+	var symbol string
+	if market != nil {
+		symbol = market.(*Market).Symbol
+	}
+	orderId := self.SafeString(order, "id")
+	timestamp := self.SafeInteger(order, "create_time_ms")
+	status := self.ParseOrderStatus(self.SafeString(order, "status"))
+	side := self.SafeString(order, "side")
+	price := self.SafeFloat(order, "price")
+	amount := self.SafeFloat(order, "amount")
+	remaining := self.SafeFloat(order, "left")
+	filled := amount - remaining
+
+	return map[string]interface{}{
+		"id":                 orderId,
+		"symbol":             symbol,
+		"side":               side,
+		"amount":             amount,
+		"price":              price,
+		"filled":             filled,
+		"remaining":          remaining,
+		"timestamp":          timestamp,
+		"datetime":           self.Iso8601(timestamp),
+		"status":             status,
+		"info":               order,
+		"lastTradeTimestamp": nil,
+		"average":            nil,
+		"trades":             nil,
+	}
+}
+
+func (self *Gateio) FetchOpenOrders(symbol string, since int64, limit int64, params map[string]interface{}) (result []*Order, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = self.PanicToError(e)
+		}
+	}()
+	if symbol == "" {
+		self.RaiseException("ArgumentsRequired", "symbol")
+	}
+	market := self.Market(symbol)
+	request := map[string]interface{}{
+		"currency_pair": market.Id,
+		"status":        "open",
+		"limit":         100,
+	}
+	response := self.ApiFuncReturnList("privateGetSpotOrders", self.Extend(request, params), nil, nil)
+	orders := []interface{}{}
+	at := self.Options["account"].(string)
+	for _, one := range response {
+		if self.SafeString(one, "account") != at {
+			continue
+		}
+		orders = append(orders, one)
+	}
+
+	return self.ToOrders(self.ParseOrders(orders, market, since, limit)), nil
+}
+
+func (self *Gateio) FetchOrder(id string, symbol string, params map[string]interface{}) (result *Order, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = self.PanicToError(e)
+		}
+	}()
+	if symbol == "" {
+		self.RaiseException("ArgumentsRequired", "symbol")
+	}
+	market := self.Market(symbol)
+	request := map[string]interface{}{
+		"order_id":      id,
+		"currency_pair": market.Id,
+	}
+	response := self.ApiFunc("privateGetSpotOrdersOrderId", self.Extend(request, params), nil, nil)
+	return self.ToOrder(self.ParseOrder(response, market)), nil
+}
+
+func (self *Gateio) CancelOrder(id string, symbol string, params map[string]interface{}) (response interface{}, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = self.PanicToError(e)
+		}
+	}()
+	if symbol == "" {
+		self.RaiseException("ArgumentsRequired", "symbol")
+	}
+
+	market := self.Market(symbol)
+	request := map[string]interface{}{
+		"order_id":      id,
+		"currency_pair": market.Id,
+	}
+	response = self.ApiFunc("privateDeleteSpotOrdersOrderId", self.Extend(request, params), nil, nil)
+	return response, nil
+}
+
 func (self *Gateio) genSign(method, url, query, body string) map[string]interface{} {
 	timestamp := self.Milliseconds() / 1000
 	m := sha512.New()
@@ -280,4 +387,16 @@ func (self *Gateio) Sign(path string, api string, method string, params map[stri
 		"body":    body,
 		"headers": headers,
 	}
+}
+
+func (self *Gateio) HandleErrors(
+	code int64, reason string, url string, method string, headers interface{}, body string, response interface{},
+	requestHeaders interface{}, requestBody interface{},
+) {
+	if response == nil {
+		return
+	}
+	errorCode := self.SafeString(response, "label")
+	message := self.SafeString(response, "message")
+	self.ThrowExactlyMatchedException(self.Member(self.Exceptions, "exact"), errorCode, message)
 }
