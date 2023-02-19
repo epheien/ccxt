@@ -619,7 +619,7 @@ type ExchangeInterface interface {
 	SetPassword(string)
 	SetUid(string)
 	SetBaseUrl(string)
-	BaseUrl() string
+	BaseUrl(key string) string
 
 	FetchCurrencies(params map[string]interface{}) map[string]interface{}
 	ApiFunc(function string, params interface{}, headers map[string]interface{}, body interface{}) (response map[string]interface{})
@@ -2383,12 +2383,26 @@ func (self *Exchange) InitDescribe() (err error) {
 }
 
 func (self *Exchange) SetBaseUrl(u string) {
-	self.Urls["api"] = u
+	if m, ok := self.Urls["api"].(map[string]interface{}); ok {
+		for key := range m {
+			m[key] = u
+		}
+	} else {
+		self.Urls["api"] = u
+	}
 }
 
-func (self *Exchange) BaseUrl() string {
+// key: public / private
+func (self *Exchange) BaseUrl(key string) string {
 	if self.Urls["api"] == nil {
 		return ""
+	}
+	if m, ok := self.Urls["api"].(map[string]interface{}); ok {
+		if m[key] == nil {
+			return ""
+		} else if u, ok := m[key].(string); ok {
+			return u
+		}
 	}
 	if u, ok := self.Urls["api"].(string); ok {
 		return u
