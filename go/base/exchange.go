@@ -620,6 +620,7 @@ type ExchangeInterface interface {
 	SetUid(string)
 	SetBaseUrl(string)
 	BaseUrl(key string) string
+	SetVerbose(verbose bool)
 
 	FetchCurrencies(params map[string]interface{}) map[string]interface{}
 	ApiFunc(function string, params interface{}, headers map[string]interface{}, body interface{}) (response map[string]interface{})
@@ -2408,6 +2409,10 @@ func (self *Exchange) BaseUrl(key string) string {
 		return u
 	}
 	return ""
+}
+
+func (self *Exchange) SetVerbose(verbose bool) {
+	self.Verbose = verbose
 }
 
 func (self *Exchange) Ymdhms(m int64, t string) string {
