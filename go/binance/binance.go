@@ -28,7 +28,8 @@ func New(config *ExchangeConfig) (ex *Binance, err error) {
 }
 
 func (self *Binance) Describe() []byte {
-	return []byte(`{
+	return []byte(`
+{
     "id": "binance",
     "name": "Binance",
     "countries": [
@@ -364,7 +365,8 @@ func (self *Binance) Describe() []byte {
         "-3008": "InsufficientFunds",
         "-3010": "ExchangeError"
     }
-}`)
+}
+`)
 }
 
 func (self *Binance) FetchMarkets(params map[string]interface{}) []interface{} {
