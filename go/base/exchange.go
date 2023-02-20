@@ -2069,6 +2069,7 @@ func (self *Exchange) ToOrder(order interface{}) (result *Order) {
 }
 
 func (self *Exchange) ToOrders(orders interface{}) (result []*Order) {
+	result = []*Order{}
 	for _, one := range orders.([]interface{}) {
 		order := (&Order{}).InitFromMap(one.(map[string]interface{}))
 		result = append(result, order)
@@ -2194,7 +2195,7 @@ func (self *Exchange) IsJsonEncodedObject(input interface{}) bool {
 }
 
 func (self *Exchange) HandleRestResponse(response string, jsonResponse interface{}, url string, method string) {
-	if self.IsJsonEncodedObject(response) && self.TestNil(jsonResponse) {
+	if self.IsJsonEncodedObject(response) && jsonResponse == nil {
 		dDoSProtectionMatched, _ := regexp.MatchString("(?i)(cloudflare|incapsula|overload|ddos)", response)
 		if dDoSProtectionMatched {
 			self.RaiseException("DDoSProtection", strings.Join([]string{method, url, response}, " "))
