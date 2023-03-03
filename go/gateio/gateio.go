@@ -396,6 +396,9 @@ func (self *Gateio) HandleErrors(
 	if response == nil {
 		return
 	}
+	if _, ok := response.(map[string]interface{}); !ok {
+		return
+	}
 	errorCode := self.SafeString(response, "label")
 	message := self.SafeString(response, "message")
 	self.ThrowExactlyMatchedException(self.Member(self.Exceptions, "exact"), errorCode, message)
