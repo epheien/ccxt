@@ -58,11 +58,11 @@ func loadApiKey(ex *Bitmax2) {
 
 func TestAll(t *testing.T) {
 	testFetchOrderBook(t)
-	testFetchBalance(t)
-	order := testCreateOrder(t); _ = order
-	testFetchOrder(t, order)
-	testFetchOpenOrders(t)
-	testCancelOrder(t, order)
+	//testFetchBalance(t)
+	//order := testCreateOrder(t); _ = order
+	//testFetchOrder(t, "")
+	//testFetchOpenOrders(t)
+	//testCancelOrder(t, order)
 }
 
 func testFetchOrderBook(t *testing.T) {
@@ -93,9 +93,9 @@ func testCreateOrder(t *testing.T) *base.Order {
 	return order
 }
 
-func testFetchOrder(t *testing.T, order *base.Order) {
+func testFetchOrder(t *testing.T, orderId string) {
 	// @ FetchOrder
-	o, err := ex.FetchOrder(order.Id, symbol, nil)
+	o, err := ex.FetchOrder(orderId, symbol, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

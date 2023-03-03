@@ -122,13 +122,14 @@ func testFetchOrder(t *testing.T, orderId string) {
 	log.Println("##### FetchOrder:", ex.JsonIndent(o))
 }
 
-func testFetchOpenOrders(t *testing.T) {
+func testFetchOpenOrders(t *testing.T) []*base.Order {
 	// @ FetchOpenOrders
 	openOrders, err := ex.FetchOpenOrders(symbol, 0, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	log.Println("##### FetchOpenOrders:", ex.JsonIndent(openOrders))
+	return openOrders
 }
 
 func testCancelOrder(t *testing.T, orderId string) {

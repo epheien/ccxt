@@ -70,11 +70,11 @@ func TestAll(t *testing.T) {
 	// 余额划转
 	//result := ex.ApiFunc("privatePostV2AccountsInnerTransfer",
 	//	map[string]interface{}{
-	//		"clientOid": "abc",
-	//		"currency": "USDT",
+	//		"clientOid": ex.Uuid(),
+	//		"currency": "BTC",
 	//		"from": "trade",
 	//		"to": "trade_hf",
-	//		"amount": "100",
+	//		"amount": "0.01",
 	//	},
 	//	nil, nil,
 	//)
@@ -136,13 +136,14 @@ func testFetchOrder(t *testing.T, orderId string) {
 	log.Println("##### FetchOrder:", ex.Json(o))
 }
 
-func testFetchOpenOrders(t *testing.T) {
+func testFetchOpenOrders(t *testing.T) []*base.Order {
 	// @ FetchOpenOrders
 	openOrders, err := ex.FetchOpenOrders(symbol, 0, 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	log.Println("##### FetchOpenOrders:", ex.Json(openOrders))
+	return openOrders
 }
 
 func testCancelOrder(t *testing.T, orderId string) {
