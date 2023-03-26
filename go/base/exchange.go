@@ -79,10 +79,12 @@ type Market struct {
 
 // Precision struct
 type Precision struct {
-	Amount int `json:"amount"`
-	Base   int `json:"base"`
-	Price  int `json:"price"`
-	Cost   int `json:"cost"`
+	Amount      int `json:"amount"` // 精度, 即小数位数, 例如 0.01 即为2, 1 即为 0
+	AmountScale int `amountScale`   // 缩放, 10 的整数倍, 其他均为非法值. > 1 时才使用. 例如 0.25 => amount: 25, scale 100
+	Price       int `json:"price"`
+	PriceSacle  int `priceScale`
+	Base        int `json:"base"`
+	Quote       int `json:"quote"`
 }
 
 // Limits struct
@@ -1792,11 +1794,6 @@ func (self *Exchange) ParseBalance(balances map[string]interface{}) (pAccount *A
 
 func (self *Exchange) Uuid() string {
 	return uuid.NewV4().String()
-}
-
-func (self *Exchange) CostToPrecision(symbol string, cost float64) string {
-	ret, _ := DecimalToPrecision(cost, Round, self.Markets[symbol].Precision.Cost, DecimalPlaces, NoPadding)
-	return ret
 }
 
 func (self *Exchange) PriceToPrecision(symbol string, price float64) string {
