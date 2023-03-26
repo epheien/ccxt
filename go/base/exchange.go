@@ -79,19 +79,19 @@ type Market struct {
 
 // Precision struct
 type Precision struct {
-	Amount      int `json:"amount"` // 精度, 即小数位数, 例如 0.01 即为2, 1 即为 0
-	AmountScale int `amountScale`   // 缩放, 10 的整数倍, 其他均为非法值. > 1 时才使用. 例如 0.25 => amount: 25, scale 100
-	Price       int `json:"price"`
-	PriceSacle  int `priceScale`
+	Price       int `json:"price"` // 精度, 即小数位数, 例如 0.01 即为2, 1 即为 0
+	PriceSacle  int `priceScale`   // 缩放, 10 的整数倍, 其他均为非法值. > 1 时才使用. 例如 0.25 => amount: 25, scale 100
+	Amount      int `json:"amount"`
+	AmountScale int `amountScale`
 	Base        int `json:"base"`
 	Quote       int `json:"quote"`
 }
 
 // Limits struct
 type Limits struct {
-	Amount MinMax `json:"amount"`
-	Price  MinMax `json:"price"`
-	Cost   MinMax `json:"cost"`
+	Amount MinMax `json:"amount"` // 最小最大下单数量
+	Price  MinMax `json:"price"`  // 最小最大下单价格
+	Cost   MinMax `json:"cost"`   // 最小最大下单交易额
 }
 
 // MinMax struct
@@ -788,7 +788,7 @@ func (self *Exchange) FetchMarkets(params map[string]interface{}) ([]*Market, er
 }
 
 func (self *Exchange) ToMarket(market map[string]interface{}) *Market {
-	return MarketFromMap(market)
+	return self.MarketFromMap(market)
 }
 
 func (self *Exchange) ToMarkets(markets []interface{}) []*Market {
@@ -832,22 +832,43 @@ func (self *Exchange) MarketId(symbol string) string {
 	}
 }
 
-func MarketFromMap(o interface{}) *Market {
+func (self *Exchange) MarketFromMap(o interface{}) *Market {
 	p := &Market{}
 
 	if m, ok := o.(map[string]interface{}); ok {
-		p.Info = o
 		p.Id = m["id"].(string)
 		p.Symbol = m["symbol"].(string)
 		p.Base = m["base"].(string)
+		//p.BaseNumericId
 		p.Quote = m["quote"].(string)
+		//p.QuoteNumericId
 		p.BaseId = m["baseId"].(string)
+		p.QuoteId = m["quoteId"].(string)
+		if m["active"] != nil {
+			p.Active = m["active"].(bool)
+		}
 		if m["taker"] != nil {
 			p.Taker = m["taker"].(float64)
 		}
 		if m["maker"] != nil {
 			p.Maker = m["maker"].(float64)
 		}
+		if m["type"] != nil {
+			p.Type = m["type"].(string)
+		}
+		if m["spot"] != nil {
+			p.Spot = m["spot"].(bool)
+		}
+		if m["swap"] != nil {
+			p.Swap = m["swap"].(bool)
+		}
+		if m["futures"] != nil {
+			p.Future = m["futures"].(bool)
+		}
+		if m["option"] != nil {
+			p.Option = m["option"].(bool)
+		}
+		//p.Prediction
 		if m["precision"] != nil {
 			precisionMap := m["precision"].(map[string]interface{})
 			if precisionMap["amount"] != nil {
@@ -857,21 +878,24 @@ func MarketFromMap(o interface{}) *Market {
 				p.Precision.Price = precisionMap["price"].(int)
 			}
 		}
-		if m["spot"] != nil {
-			p.Spot = m["spot"].(bool)
+		//p.Limits
+		if m["limits"] != nil {
+			limitsMap := m["limits"].(map[string]interface{})
+			if limitsMap["amount"] != nil {
+				p.Limits.Amount.Min = self.SafeFloat(limitsMap["amount"], "min")
+				p.Limits.Amount.Max = self.SafeFloat(limitsMap["amount"], "max")
+			}
+			if limitsMap["price"] != nil {
+				p.Limits.Price.Min = self.SafeFloat(limitsMap["price"], "min")
+				p.Limits.Price.Max = self.SafeFloat(limitsMap["price"], "max")
+			}
+			if limitsMap["cost"] != nil {
+				p.Limits.Cost.Min = self.SafeFloat(limitsMap["cost"], "min")
+				p.Limits.Cost.Max = self.SafeFloat(limitsMap["cost"], "max")
+			}
 		}
-		if m["type"] != nil {
-			p.Type = m["type"].(string)
-		}
-		if m["futures"] != nil {
-			p.Future = m["futures"].(bool)
-		}
-		if m["swap"] != nil {
-			p.Swap = m["swap"].(bool)
-		}
-		if m["option"] != nil {
-			p.Option = m["option"].(bool)
-		}
+		//p.Lot
+		p.Info = m["info"]
 	}
 
 	return p
@@ -1572,6 +1596,14 @@ func (self *Exchange) SafeInteger2(d interface{}, key1 string, key2 string, defa
 	return ToInteger(self.SafeEither(d, key1, key2, defaultVal))
 }
 
+func (self *Exchange) SafeBool(d interface{}, key string, def ...bool) bool {
+	var defaultVal bool
+	if len(def) > 0 {
+		defaultVal = def[0]
+	}
+	return self.ToBool(self.SafeValue(d, key, defaultVal))
+}
+
 func (self *Exchange) SafeFloat2(d interface{}, key1 string, key2 string, defaultVal float64) float64 {
 	return ToFloat(self.SafeEither(d, key1, key2, defaultVal))
 }
@@ -2127,6 +2159,7 @@ func (self *Exchange) Nonce() int64 {
 	return self.Milliseconds()
 }
 
+// 0.00010000 => 4
 func (self *Exchange) PrecisionFromString(s string) int {
 	re := regexp.MustCompile(`0+$`)
 	s = re.ReplaceAllString(s, "")

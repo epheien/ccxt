@@ -308,11 +308,12 @@ func (self *Kucoin) FetchMarkets(params map[string]interface{}) ([]*Market, erro
 		base := self.SafeCurrencyCode(baseId)
 		quote := self.SafeCurrencyCode(quoteId)
 		symbol := base + "/" + quote
-		active := self.SafeValue(market, "enableTrading", nil)
+		active := self.SafeBool(market, "enableTrading")
 		baseMaxSize := self.SafeFloat(market, "baseMaxSize", 0)
 		baseMinSize := self.SafeFloat(market, "baseMinSize", 0)
 		quoteMaxSize := self.SafeFloat(market, "quoteMaxSize", 0)
-		quoteMinSize := self.SafeFloat(market, "quoteMinSize", 0)
+		//quoteMinSize := self.SafeFloat(market, "quoteMinSize", 0)
+		minFunds := self.SafeFloat(market, "minFunds")
 		precision := map[string]interface{}{
 			"amount": self.PrecisionFromString(self.SafeString(market, "baseIncrement", "")),
 			"price":  self.PrecisionFromString(self.SafeString(market, "priceIncrement", "")),
@@ -327,7 +328,8 @@ func (self *Kucoin) FetchMarkets(params map[string]interface{}) ([]*Market, erro
 				"max": quoteMaxSize / baseMinSize,
 			},
 			"cost": map[string]interface{}{
-				"min": quoteMinSize,
+				//"min": quoteMinSize,
+				"min": minFunds,
 				"max": quoteMaxSize,
 			},
 		}
