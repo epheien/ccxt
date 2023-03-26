@@ -589,7 +589,7 @@ type ExchangeInterface interface {
 	FetchPositions(symbol string, params map[string]interface{}) ([]*Position, error)
 	FetchMarkPrice(symbol string, params map[string]interface{}) (*MarkPrice, error)
 	//FetchCurrencies() (map[string]*Currency, error)
-	FetchMarkets(params map[string]interface{}) []interface{}
+	FetchMarkets(params map[string]interface{}) ([]*Market, error)
 	FetchAccounts(params map[string]interface{}) []interface{}
 
 	CreateOrder(symbol, otype, side string, amount float64, price float64, params map[string]interface{}) (*Order, error)
@@ -599,7 +599,7 @@ type ExchangeInterface interface {
 
 	// Describe() []byte
 	//GetMarkets() map[string]*Market
-	SetMarkets([]interface{}, map[string]interface{}) map[string]*Market
+	SetMarkets([]*Market, map[string]interface{}) map[string]*Market
 	//GetMarketsById() map[string]Market
 	//SetMarketsById(map[string]Market)
 	//GetCurrencies() map[string]Currency
@@ -783,8 +783,20 @@ func (self *Exchange) Describe() []byte {
 	return nil
 }
 
-func (self *Exchange) FetchMarkets(params map[string]interface{}) []interface{} {
-	return nil
+func (self *Exchange) FetchMarkets(params map[string]interface{}) ([]*Market, error) {
+	return nil, errors.New("FetchMarkets not supported yet")
+}
+
+func (self *Exchange) ToMarket(market map[string]interface{}) *Market {
+	return MarketFromMap(market)
+}
+
+func (self *Exchange) ToMarkets(markets []interface{}) []*Market {
+	result := []*Market{}
+	for _, market := range markets {
+		result = append(result, self.ToMarket(market.(map[string]interface{})))
+	}
+	return result
 }
 
 func (self *Exchange) FetchTicker(symbol string, params map[string]interface{}) (*Ticker, error) {
@@ -865,7 +877,7 @@ func MarketFromMap(o interface{}) *Market {
 	return p
 }
 
-func (self *Exchange) SetMarkets(markets []interface{}, currencies map[string]interface{}) map[string]*Market {
+func (self *Exchange) SetMarkets(markets []*Market, currencies map[string]interface{}) map[string]*Market {
 	symbols := make([]string, len(markets))
 	Ids := make([]string, len(markets))
 	marketsBySymbol := make(map[string]*Market, len(markets))
@@ -873,8 +885,7 @@ func (self *Exchange) SetMarkets(markets []interface{}, currencies map[string]in
 	baseCurrencies := make([]*Currency, 0)
 	quoteCurrencies := make([]*Currency, 0)
 
-	for i, o := range markets {
-		market := MarketFromMap(o)
+	for i, market := range markets {
 		marketsBySymbol[market.Symbol] = market
 		marketsById[market.Id] = market
 		symbols[i] = market.Symbol
@@ -980,7 +991,13 @@ func (self *Exchange) LoadMarkets() map[string]*Market {
 		currencies = self.Child.FetchCurrencies(map[string]interface{}{})
 	}
 
-	markets := self.Child.FetchMarkets(nil)
+	markets, err := self.Child.FetchMarkets(nil)
+	if err != nil {
+		if err.Error() == "FetchMarkets not supported yet" {
+			return map[string]*Market{}
+		}
+		self.RaiseException("ExchangeError", fmt.Sprintf("failed to FetchMarkets(): %s", err))
+	}
 	return self.Child.SetMarkets(markets, currencies)
 }
 

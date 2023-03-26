@@ -369,7 +369,7 @@ func (self *Binance) Describe() []byte {
 `)
 }
 
-func (self *Binance) FetchMarkets(params map[string]interface{}) []interface{} {
+func (self *Binance) FetchMarkets(params map[string]interface{}) ([]*Market, error) {
 	defaultType := self.SafeString2(self.Options, "fetchMarkets", "defaultType", "spot")
 	typ := self.SafeString(params, "type", defaultType)
 	query := self.Omit(params, "type")
@@ -471,7 +471,7 @@ func (self *Binance) FetchMarkets(params map[string]interface{}) []interface{} {
 		}
 		result = append(result, entry)
 	}
-	return result
+	return self.ToMarkets(result), nil
 }
 
 func (self *Binance) FetchBalance(params map[string]interface{}) (balanceResult *Account, err error) {
@@ -718,7 +718,7 @@ func (self *Binance) ParseOrder(order interface{}, market interface{}) (result m
 			}
 		}
 		if self.ToBool(self.Member(self.Options, "parseOrderToPrecision")) {
-			cost = ToFloat(self.CostToPrecision(symbol.(string), cost))
+			//cost = ToFloat(self.CostToPrecision(symbol.(string), cost))
 		}
 	}
 	clientOrderId := self.SafeString(order, "clientOrderId", "")

@@ -302,7 +302,7 @@ func (self *Bitmax) FetchCurrencies(params map[string]interface{}) map[string]in
 	return result
 }
 
-func (self *Bitmax) FetchMarkets(params map[string]interface{}) []interface{} {
+func (self *Bitmax) FetchMarkets(params map[string]interface{}) ([]*Market, error) {
 	products := self.ApiFunc("publicGetProducts", params, nil, nil)
 	cash := self.ApiFunc("publicGetCashProducts", params, nil, nil)
 	futures := self.ApiFunc("publicGetFuturesContracts", params, nil, nil)
@@ -365,7 +365,7 @@ func (self *Bitmax) FetchMarkets(params map[string]interface{}) []interface{} {
 			},
 		})
 	}
-	return result
+	return self.ToMarkets(result), nil
 }
 
 func (self *Bitmax) FetchAccounts(params map[string]interface{}) []interface{} {
