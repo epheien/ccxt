@@ -43,7 +43,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-type JSONTime int64
+//type JSONTime int64
 
 type SignInfo struct {
 	Url     string
@@ -478,10 +478,10 @@ type Trade struct {
 	Symbol    string      `json:"symbol"`
 	Amount    float64     `json:"amount"`
 	Price     float64     `json:"price"`
-	Timestamp JSONTime    `json:"timestamp"`
+	Timestamp int64       `json:"timestamp"`
 	Datetime  string      `json:"datetime"`
-	Order     string      `json:"order"`
-	Type      string      `json:"type"`
+	Order     string      `json:"order"` // ignore
+	Type      string      `json:"type"`  // ignore
 	Side      string      `json:"side"`
 	Info      interface{} `json:"info"`
 }
@@ -577,7 +577,7 @@ type ExchangeInterface interface {
 	FetchOrderBook(symbol string, limit int64, params map[string]interface{}) (*OrderBook, error)
 	FetchStatus(params map[string]interface{}) (*ExchangeStatus, error) // 默认实现为返回 ok 状态
 	// FetchL2OrderBook(symbol string, limit *int, params map[string]interface{}) (OrderBook, error)
-	// FetchTrades(symbol string, since *JSONTime, params map[string]interface{}) ([]Trade, error)
+	FetchTrades(symbol string, since int64, limit int64, params map[string]interface{}) ([]*Trade, error)
 	FetchOrder(id string, symbol string, params map[string]interface{}) (*Order, error)
 	// FetchOrders(symbol *string, since *JSONTime, limit *int, params map[string]interface{}) ([]Order, error)
 	FetchOpenOrders(symbol string, since int64, limit int64, params map[string]interface{}) ([]*Order, error)
@@ -643,6 +643,7 @@ type ExchangeInterfaceInternal interface {
 	FetchViaFastHttp(url string, method string, headers map[string]interface{}, body interface{}) (response []byte, jsonResponse interface{})
 	Request(path string, api string, method string, params map[string]interface{}, headers map[string]interface{}, body interface{}) (response interface{})
 	Describe() []byte
+	ParseTrade(interface{}, *Market) *Trade
 	ParseOrder(interface{}, interface{}) map[string]interface{}
 	HandleErrors(code int64, reason string, url string, method string, headers interface{}, body string, response interface{}, requestHeaders interface{}, requestBody interface{})
 	Market(string) *Market
@@ -2032,6 +2033,10 @@ func (self *Exchange) CancelOrder(id string, symbol string, params map[string]in
 	return nil, fmt.Errorf("%s CancelOrder not supported yet", self.Id)
 }
 
+func (self *Exchange) FetchTrades(symbol string, since int64, limit int64, params map[string]interface{}) ([]*Trade, error) {
+	return nil, fmt.Errorf("%s FetchTrades not supported yet", self.Id)
+}
+
 func (self *Exchange) FetchOrder(id string, symbol string, params map[string]interface{}) (*Order, error) {
 	return nil, fmt.Errorf("%s FetchOrder not supported yet", self.Id)
 }
@@ -2056,11 +2061,22 @@ func (self *Exchange) SetUid(s string) {
 	self.Uid = s
 }
 
+func (self *Exchange) ParseTrades(trades []interface{}, market *Market, since int64, limit int64) (result []*Trade) {
+	for _, trade := range trades {
+		result = append(result, self.Child.ParseTrade(trade, market))
+	}
+	return result
+}
+
 func (self *Exchange) ParseOrders(orders interface{}, market interface{}, since int64, limit int64) (result []interface{}) {
 	for _, order := range orders.([]interface{}) {
 		result = append(result, self.Child.ParseOrder(order, market))
 	}
 	return result
+}
+
+func (self *Exchange) ParseTrade(trade interface{}, market *Market) *Trade {
+	return &Trade{}
 }
 
 func (self *Exchange) ParseOrder(order interface{}, market interface{}) map[string]interface{} {

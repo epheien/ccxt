@@ -59,6 +59,7 @@ func loadApiKey(ex *Kucoin) {
 
 func TestAll(t *testing.T) {
 	testFetchOrderBook(t)
+	//testFetchTrades(t)
 	//testFetchTicker(t)
 	//testFetchOHLCV(t)
 	testFetchBalance(t)
@@ -88,6 +89,19 @@ func testFetchOrderBook(t *testing.T) {
 		t.Fatal(err)
 	}
 	log.Println("##### FetchOrderBook:", symbol, ex.JsonIndent(orderbook))
+}
+
+func testFetchTrades(t *testing.T) {
+	// @ FetchTrades
+	trades, err := ex.FetchTrades(symbol, 0, 0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Println("##### FetchTrades:", symbol, ex.JsonIndent(trades))
+	if len(trades) > 0 {
+		length := len(trades)
+		log.Println("Trade Frequency:", float64(length)*1000/float64(trades[length-1].Timestamp-trades[0].Timestamp))
+	}
 }
 
 func testFetchTicker(t *testing.T) {

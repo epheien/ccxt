@@ -462,7 +462,7 @@ func (self *Kucoin) CancelOrder(id string, symbol string, params map[string]inte
 	market := self.Market(symbol)
 	request := map[string]interface{}{
 		"orderId": id,
-		"symbol": market.Id,
+		"symbol":  market.Id,
 	}
 	response = self.ApiFunc("privateDeleteHfOrdersOrderId", self.Extend(request, params), nil, nil)
 	return response, nil
@@ -489,6 +489,22 @@ func (self *Kucoin) FetchOpenOrders(symbol string, since int64, limit int64, par
 	return self.ToOrders(self.ParseOrders(orders, market, since, limit)), nil
 }
 
+func (self *Kucoin) FetchTrades(symbol string, since int64, limit int64, params map[string]interface{}) (trades []*Trade, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = self.PanicToError(e)
+		}
+	}()
+	market := self.Market(symbol)
+	request := map[string]interface{}{
+		"symbol": market.Id,
+	}
+	response := self.ApiFunc("publicGetMarketHistories", self.Extend(request, params), nil, nil)
+	responseData := self.Member(response, "data")
+	trades = self.ParseTrades(responseData.([]interface{}), market, since, limit)
+	return
+}
+
 func (self *Kucoin) FetchOrder(id string, symbol string, params map[string]interface{}) (result *Order, err error) {
 	defer func() {
 		if e := recover(); e != nil {
@@ -506,6 +522,22 @@ func (self *Kucoin) FetchOrder(id string, symbol string, params map[string]inter
 	response := self.ApiFunc("privateGetHfOrdersOrderId", self.Extend(request, params), nil, nil)
 	responseData := self.Member(response, "data")
 	return self.ToOrder(self.ParseOrder(responseData, market)), nil
+}
+
+func (self *Kucoin) ParseTrade(trade interface{}, market *Market) (result *Trade) {
+	result = &Trade{
+		Id:        self.SafeString(trade, "sequence"),
+		Timestamp: self.SafeInteger(trade, "time") / 1000000,
+		Price:     self.SafeFloat(trade, "price"),
+		Amount:    self.SafeFloat(trade, "size"),
+		Side:      self.SafeString(trade, "side"),
+		Info:      trade,
+	}
+	result.Datetime = self.Iso8601(result.Timestamp)
+	if market != nil {
+		result.Symbol = market.Symbol
+	}
+	return
 }
 
 func (self *Kucoin) ParseOrder(order interface{}, market interface{}) (result map[string]interface{}) {
