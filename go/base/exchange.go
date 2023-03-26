@@ -9,6 +9,7 @@ import (
 	"crypto/sha512"
 	"github.com/imdario/mergo"
 	"github.com/thoas/go-funk"
+	"os"
 
 	//"crypto/tls"
 	"encoding/base64"
@@ -689,6 +690,9 @@ func (self *Exchange) SetHttpLib(lib string) {
 
 func (self *Exchange) SetProxy(proxy string) {
 	self.FastHttpClient.Dial = fasthttpproxy.FasthttpSocksDialer(proxy)
+	// 以下用于支持 net/http 库
+	os.Setenv("HTTP_PROXY", proxy)
+	os.Setenv("HTTPS_PROXY", proxy)
 }
 
 func (self *Exchange) Init(config *ExchangeConfig) (err error) {
