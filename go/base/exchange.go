@@ -629,6 +629,7 @@ type ExchangeInterface interface {
 	ApiFunc(function string, params interface{}, headers map[string]interface{}, body interface{}) (response map[string]interface{})
 	ApiFuncRaw(function string, params map[string]interface{}, headers map[string]interface{}, body interface{}) (response []byte)
 	SetHttpLib(lib string) // fasthttp, net/http
+	SetProxy(proxy string)
 }
 
 type ExchangeInterfaceInternal interface {
