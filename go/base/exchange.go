@@ -2173,7 +2173,7 @@ func (self *Exchange) PrecisionFromString(s string) int {
 }
 
 func RaiseException(errCls interface{}, msg interface{}) {
-	panic([]string{errCls.(string), msg.(string)})
+	panic(fmt.Sprintf("%s: %s", errCls.(string), msg.(string)))
 }
 
 func (self *Exchange) RaiseInternalException(msg interface{}) {
@@ -2211,8 +2211,13 @@ func (self *Exchange) ThrowBroadlyMatchedException(broad interface{}, s interfac
 
 func (self *Exchange) PanicToError(e interface{}) (err error) {
 	switch e.(type) {
-	case []string:
-		args := e.([]string)
+	case string, []string:
+		var args []string
+		if str, ok := e.(string); ok {
+			args = strings.SplitN(str, ": ", 2)
+		} else {
+			args = e.([]string)
+		}
 		if len(args) == 2 {
 			errCls := args[0]
 			message := args[1]
