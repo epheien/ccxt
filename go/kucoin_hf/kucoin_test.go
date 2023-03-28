@@ -58,11 +58,12 @@ func loadApiKey(ex *Kucoin) {
 }
 
 func TestAll(t *testing.T) {
+	testFetchMarkets(t)
 	testFetchOrderBook(t)
 	//testFetchTrades(t)
 	//testFetchTicker(t)
 	//testFetchOHLCV(t)
-	testFetchBalance(t)
+	//testFetchBalance(t)
 	//order := testCreateOrder(t); _ = order
 	//testFetchOrder(t, "63a42a5f77056300018c3e48")
 	//testFetchOpenOrders(t)
@@ -82,6 +83,27 @@ func TestAll(t *testing.T) {
 	//log.Println(result)
 }
 
+func testFetchMarkets(t *testing.T) {
+	// @ FetchMarkets
+	markets, err := ex.FetchMarkets(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Println("##### FetchMarkets:", ex.JsonIndent(markets[0]))
+	count := 0
+	for _, market := range markets {
+		if !market.Active {
+			log.Println(market.Symbol, "is not active!")
+			continue
+		}
+		if market.QuoteId != "USDT" {
+			continue
+		}
+		count += 1
+	}
+	log.Printf("*/USDT count %d / %d", count, len(markets))
+}
+
 func testFetchOrderBook(t *testing.T) {
 	// @ FetchOrderBook
 	orderbook, err := ex.FetchOrderBook(symbol, 5, nil)
@@ -97,10 +119,10 @@ func testFetchTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	log.Println("##### FetchTrades:", symbol, ex.JsonIndent(trades))
+	//log.Println("##### FetchTrades:", symbol, ex.JsonIndent(trades))
 	if len(trades) > 0 {
 		length := len(trades)
-		log.Println("Trade Frequency:", float64(length)*1000/float64(trades[length-1].Timestamp-trades[0].Timestamp))
+		log.Println(symbol, "Trade Frequency:", float64(length)*1000/float64(trades[length-1].Timestamp-trades[0].Timestamp))
 	}
 }
 
