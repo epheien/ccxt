@@ -54,22 +54,22 @@ type SignInfo struct {
 
 // Market struct
 type Market struct {
-	Id             string  `json:"id"`     // exchange specific
-	Symbol         string  `json:"symbol"` // ccxt unified
-	Base           string  `json:"base"`
-	BaseNumericId  string  `json:"baseNumericId"`
-	Quote          string  `json:"quote"`
-	QuoteNumericId string  `json:"quoteNumericId"`
-	BaseId         string  `json:"baseId"`  // from bitmex
-	QuoteId        string  `json:"quoteId"` // from bitmex
-	Active         bool    `json:"active"`  // from bitmex
-	Taker          float64 `json:"taker"`   // from bitmex
-	Maker          float64 `json:"maker"`   // from bitmex
-	Type           string  `json:"type"`    // from bitmex
-	Spot           bool    `json:"spot"`    // from bitmex
-	Swap           bool    `json:"swap"`    // from bitmex
-	Future         bool    `json:"future"`  // from bitmex
-	Option         bool
+	Id             string      `json:"id"`     // exchange specific
+	Symbol         string      `json:"symbol"` // ccxt unified
+	Base           string      `json:"base"`
+	BaseNumericId  string      `json:"baseNumericId"`
+	Quote          string      `json:"quote"`
+	QuoteNumericId string      `json:"quoteNumericId"`
+	BaseId         string      `json:"baseId"`  // from bitmex
+	QuoteId        string      `json:"quoteId"` // from bitmex
+	Active         bool        `json:"active"`  // from bitmex
+	Taker          float64     `json:"taker"`   // from bitmex
+	Maker          float64     `json:"maker"`   // from bitmex
+	Type           string      `json:"type"`    // from bitmex
+	Spot           bool        `json:"spot"`    // from bitmex
+	Swap           bool        `json:"swap"`    // from bitmex
+	Future         bool        `json:"future"`  // from bitmex
+	Option         bool        `json:"option"`
 	Prediction     bool        `json:"prediction"` // from bitmex
 	Precision      Precision   `json:"precision"`
 	Limits         Limits      `json:"limits"`
