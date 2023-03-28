@@ -960,6 +960,49 @@ func (self *Binance) CancelOrder(id string, symbol string, params map[string]int
 	return self.ToOrder(self.ParseOrder(response, market)), nil
 }
 
+func (self *Binance) FetchTrades(symbol string, since int64, limit int64, params map[string]interface{}) (trades []*Trade, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = self.PanicToError(e)
+		}
+	}()
+	self.LoadMarkets()
+	market := self.Market(symbol)
+	request := map[string]interface{}{
+		"symbol": market.Id,
+		"limit":  1000, // 默认 500
+	}
+	if limit > 0 {
+		request["limit"] = limit
+	}
+	if since > 0 {
+		request["startTime"] = since
+	}
+	response := self.ApiFuncReturnList("publicGetAggTrades", self.Extend(request, params), nil, nil)
+	trades = self.ParseTrades(response, market, since, limit)
+	return
+}
+
+func (self *Binance) ParseTrade(trade interface{}, market *Market) (result *Trade) {
+	result = &Trade{
+		Id:        fmt.Sprint(self.SafeInteger(trade, "a")),
+		Timestamp: self.SafeInteger(trade, "T"),
+		Price:     self.SafeFloat(trade, "p"),
+		Amount:    self.SafeFloat(trade, "q"),
+		Info:      trade,
+	}
+	result.Datetime = self.Iso8601(result.Timestamp)
+	if self.SafeBool(trade, "m") {
+		result.Side = "sell"
+	} else {
+		result.Side = "buy"
+	}
+	if market != nil {
+		result.Symbol = market.Symbol
+	}
+	return
+}
+
 func (self *Binance) Sign(path string, api string, method string, params map[string]interface{}, headers interface{}, body interface{}) (ret interface{}) {
 	if self.ToBool(!self.ToBool(self.InMap(api, self.Member(self.Urls, "api")))) {
 		self.RaiseException("NotSupported", self.Id+" does not have a testnet/sandbox URL for "+api+" endpoints")
