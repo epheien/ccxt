@@ -107,8 +107,12 @@ func testFetchTrades(t *testing.T) {
 		t.Fatal(err)
 	}
 	length := len(trades)
-	log.Println("##### FetchTrades:", symbol, ex.JsonIndent(trades[length-4:length-1]))
-	if len(trades) > 0 {
+	if length >= 3 {
+		log.Println("##### FetchTrades:", symbol, ex.JsonIndent(trades[length-4:length-1]))
+	} else {
+		log.Println("##### FetchTrades:", symbol, ex.JsonIndent(trades))
+	}
+	if length > 0 {
 		length := len(trades)
 		log.Println(symbol, "Trade Frequency:", float64(length)*1000/float64(trades[length-1].Timestamp-trades[0].Timestamp))
 	}

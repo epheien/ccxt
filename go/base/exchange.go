@@ -2113,6 +2113,7 @@ func (self *Exchange) SetUid(s string) {
 }
 
 func (self *Exchange) ParseTrades(trades []interface{}, market *Market, since int64, limit int64) (result []*Trade) {
+	result = []*Trade{}
 	for _, trade := range trades {
 		result = append(result, self.Child.ParseTrade(trade, market))
 	}
@@ -2127,6 +2128,7 @@ func (self *Exchange) ReverseTrades(slice []*Trade) []*Trade {
 }
 
 func (self *Exchange) ParseOrders(orders interface{}, market interface{}, since int64, limit int64) (result []interface{}) {
+	result = []interface{}{}
 	for _, order := range orders.([]interface{}) {
 		result = append(result, self.Child.ParseOrder(order, market))
 	}
