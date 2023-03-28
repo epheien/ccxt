@@ -109,6 +109,7 @@ func (self *Kucoin) Describe() []byte {
                 "timestamp",
                 "status",
                 "symbols",
+                "v2/symbols",
                 "markets",
                 "market/allTickers",
                 "market/orderbook/level{level}",
@@ -298,7 +299,7 @@ func (self *Kucoin) Describe() []byte {
 }
 
 func (self *Kucoin) FetchMarkets(params map[string]interface{}) ([]*Market, error) {
-	response := self.ApiFunc("publicGetSymbols", params, nil, nil)
+	response := self.ApiFunc("publicGetV2Symbols", params, nil, nil)
 	data := self.Member(response, "data")
 	result := []interface{}{}
 	for i := 0; i < self.Length(data); i++ {
