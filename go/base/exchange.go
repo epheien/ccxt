@@ -1584,7 +1584,11 @@ func (self *Exchange) SafeInteger(d interface{}, key string, def ...int64) (ret 
 			} else if v, ok := val.(string); ok {
 				i, err := strconv.ParseInt(v, 10, 64)
 				if err != nil {
-					panic(fmt.Sprintf("SafeInteger error (%s): %s", err.Error(), v))
+					f, err := strconv.ParseFloat(v, 64)
+					if err != nil {
+						panic(fmt.Sprintf("SafeInteger error (%s): %s", err.Error(), v))
+					}
+					i = int64(f)
 				}
 				return i
 			}
@@ -2113,6 +2117,13 @@ func (self *Exchange) ParseTrades(trades []interface{}, market *Market, since in
 		result = append(result, self.Child.ParseTrade(trade, market))
 	}
 	return result
+}
+
+func (self *Exchange) ReverseTrades(slice []*Trade) []*Trade {
+	for i, j := 0, len(slice)-1; i < j; i, j = i+1, j-1 {
+		slice[i], slice[j] = slice[j], slice[i]
+	}
+	return slice
 }
 
 func (self *Exchange) ParseOrders(orders interface{}, market interface{}, since int64, limit int64) (result []interface{}) {

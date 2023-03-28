@@ -85,7 +85,10 @@ func (self *Gateio) Describe() []byte {
     "api": {
         "public": {
             "get": [
-                "spot/order_book"
+                "spot/order_book",
+                "spot/currencies",
+                "spot/currency_pairs",
+                "spot/trades",
             ]
         },
         "private": {
@@ -150,6 +153,57 @@ func (self *Gateio) Market(symbol string) *Market {
 
 func (self *Gateio) LoadMarkets() map[string]*Market {
 	return nil
+}
+
+func (self *Gateio) FetchMarkets(params map[string]interface{}) ([]*Market, error) {
+	response := self.ApiFuncReturnList("publicGetSpotCurrencyPairs", params, nil, nil)
+	data := response
+	result := []interface{}{}
+	for i := 0; i < self.Length(data); i++ {
+		/*
+			{
+				"amount_precision": 0,
+				"base": "100X",
+				"buy_start": 1622793600,
+				"fee": "0.2",
+				"id": "100X_USDT",
+				"min_quote_amount": "1",
+				"precision": 11,
+				"quote": "USDT",
+				"sell_start": 1608782400,
+				"trade_status": "untradable"
+			}
+		*/
+		market := self.Member(data, i)
+		id := self.SafeString(market, "id", "")
+		baseId, quoteId := self.Unpack2(strings.Split(id, "_"))
+		base := self.SafeCurrencyCode(baseId)
+		quote := self.SafeCurrencyCode(quoteId)
+		symbol := base + "/" + quote
+		active := (self.SafeString(market, "trade_status") == "tradable")
+		precision := map[string]interface{}{
+			"amount": self.SafeInteger(market, "amount_precision"),
+			"price":  self.SafeInteger(market, "precision"),
+		}
+		limits := map[string]interface{}{
+			"cost": map[string]interface{}{
+				"min": self.SafeFloat(market, "min_quote_amount"),
+			},
+		}
+		result = append(result, map[string]interface{}{
+			"id":        id,
+			"symbol":    symbol,
+			"baseId":    baseId,
+			"quoteId":   quoteId,
+			"base":      base,
+			"quote":     quote,
+			"active":    active,
+			"precision": precision,
+			"limits":    limits,
+			"info":      market,
+		})
+	}
+	return self.ToMarkets(result), nil
 }
 
 func (self *Gateio) FetchOrderBook(symbol string, limit int64, params map[string]interface{}) (orderBook *OrderBook, err error) {
@@ -301,6 +355,44 @@ func (self *Gateio) FetchOpenOrders(symbol string, since int64, limit int64, par
 	}
 
 	return self.ToOrders(self.ParseOrders(orders, market, since, limit)), nil
+}
+
+func (self *Gateio) FetchTrades(symbol string, since int64, limit int64, params map[string]interface{}) (trades []*Trade, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = self.PanicToError(e)
+		}
+	}()
+	market := self.Market(symbol)
+	request := map[string]interface{}{
+		"currency_pair": market.Id,
+	}
+	if limit > 0 {
+		request["limit"] = limit
+	}
+	if since > 0 {
+		request["from"] = since
+	}
+	response := self.ApiFuncReturnList("publicGetSpotTrades", self.Extend(request, params), nil, nil)
+	trades = self.ParseTrades(response, market, since, limit)
+	trades = self.ReverseTrades(trades)
+	return
+}
+
+func (self *Gateio) ParseTrade(trade interface{}, market *Market) (result *Trade) {
+	result = &Trade{
+		Id:        self.SafeString(trade, "id"),
+		Timestamp: self.SafeInteger(trade, "create_time_ms"),
+		Price:     self.SafeFloat(trade, "price"),
+		Amount:    self.SafeFloat(trade, "amount"),
+		Side:      self.SafeString(trade, "side"),
+		Info:      trade,
+	}
+	result.Datetime = self.Iso8601(result.Timestamp)
+	if market != nil {
+		result.Symbol = market.Symbol
+	}
+	return
 }
 
 func (self *Gateio) FetchOrder(id string, symbol string, params map[string]interface{}) (result *Order, err error) {
