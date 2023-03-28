@@ -873,10 +873,10 @@ func (self *Exchange) MarketFromMap(o interface{}) *Market {
 		if m["precision"] != nil {
 			precisionMap := m["precision"].(map[string]interface{})
 			if precisionMap["amount"] != nil {
-				p.Precision.Amount = precisionMap["amount"].(int)
+				p.Precision.Amount = int(ToInteger(precisionMap["amount"]))
 			}
 			if precisionMap["price"] != nil {
-				p.Precision.Price = precisionMap["price"].(int)
+				p.Precision.Price = int(ToInteger(precisionMap["price"]))
 			}
 		}
 		//p.Limits
