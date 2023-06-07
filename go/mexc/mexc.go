@@ -94,14 +94,20 @@ func (self *Mexc) Describe() []byte {
         "private": {
             "get": [
                 "account",
+                "order",
+                "openOrders",
+                "allOrders",
+                "myTrades",
+                "mxDeduct/enable",
             ],
             "post": [
-                "spot/orders",
-                "wallet/transfers",
-                "wallet/sub_account_transfers"
+                "order",
+                "batchOrders",
+                "mxDeduct/enable",
             ],
             "delete": [
-                "spot/orders/{order_id}"
+                "order",
+                "openOrders",
             ]
         }
     },
@@ -277,15 +283,15 @@ func (self *Mexc) CreateOrder(symbol string, _type string, side string, amount f
 	}
 	marketId := self.MarketId(symbol)
 	request := map[string]interface{}{
-		"account":       self.Options["account"],
-		"currency_pair": marketId,
-		"side":          side,
-		"price":         self.Float64ToString(price),
-		"amount":        self.Float64ToString(amount),
+		"type":     strings.ToUpper(_type),
+		"symbol":   marketId,
+		"side":     strings.ToUpper(side),
+		"price":    self.Float64ToString(price),
+		"quantity": self.Float64ToString(amount),
 	}
-	response := self.ApiFunc("privatePostSpotOrders", self.Extend(request, params), nil, nil)
+	response := self.ApiFunc("privatePostOrder", self.Extend(request, params), nil, nil)
 	data := response
-	timestamp := self.SafeInteger(response, "create_time_ms")
+	timestamp := self.SafeInteger(response, "transactTime")
 	order := map[string]interface{}{
 		"id":        self.SafeString(data, "id"),
 		"symbol":    symbol,
