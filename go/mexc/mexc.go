@@ -2,11 +2,10 @@ package mexc
 
 import (
 	"crypto/hmac"
-	"crypto/sha512"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	. "github.com/georgexdz/ccxt/go/base"
-	urllib "net/url"
 	"strings"
 )
 
@@ -94,6 +93,7 @@ func (self *Mexc) Describe() []byte {
         },
         "private": {
             "get": [
+                "account",
             ],
             "post": [
                 "spot/orders",
@@ -249,15 +249,15 @@ func (self *Mexc) FetchBalance(params map[string]interface{}) (balanceResult *Ac
 			err = self.PanicToError(e)
 		}
 	}()
-	response := self.ApiFuncReturnList("privateGetSpotAccounts", params, nil, nil)
+	response := self.ApiFunc("privateGetAccount", params, nil, nil)
 	result := map[string]interface{}{
 		"info": response,
 	}
-	for _, one := range response {
+	for _, one := range response["balances"].([]interface{}) {
 		account := self.Account()
-		free := self.SafeFloat(one, "available")
+		free := self.SafeFloat(one, "free")
 		used := self.SafeFloat(one, "locked")
-		cc := self.SafeString(one, "currency")
+		cc := self.SafeString(one, "asset")
 		account["free"] = free
 		account["used"] = used
 		account["total"] = free + used
@@ -450,22 +450,18 @@ func (self *Mexc) CancelOrder(id string, symbol string, params map[string]interf
 	return response, nil
 }
 
-func (self *Mexc) genSign(method, url, query, body string) map[string]interface{} {
-	timestamp := self.Milliseconds() / 1000
-	m := sha512.New()
-	if body != "" {
-		m.Write([]byte(body))
+func (self *Mexc) genSign(query string, timestamp int64) (string, string) {
+	var payload string
+	if query == "" {
+		payload = fmt.Sprintf("timestamp=%d", timestamp)
+	} else {
+		payload = fmt.Sprintf("%s&timestamp=%d", query, timestamp)
 	}
-	hashedPayload := hex.EncodeToString(m.Sum(nil))
-	s := fmt.Sprintf("%s\n%s\n%s\n%s\n%d", method, url, query, hashedPayload, timestamp)
-	mac := hmac.New(sha512.New, []byte(self.Secret))
-	mac.Write([]byte(s))
+	mac := hmac.New(sha256.New, []byte(self.Secret))
+	fmt.Println(payload)
+	mac.Write([]byte(payload))
 	sign := hex.EncodeToString(mac.Sum(nil))
-	return map[string]interface{}{
-		"KEY":       self.ApiKey,
-		"Timestamp": fmt.Sprint(timestamp),
-		"SIGN":      sign,
-	}
+	return payload, sign
 }
 
 func (self *Mexc) Sign(path string, api string, method string, params map[string]interface{}, headers interface{}, body interface{}) (ret interface{}) {
@@ -477,18 +473,20 @@ func (self *Mexc) Sign(path string, api string, method string, params map[string
 		}
 	} else {
 		self.CheckRequiredCredentials()
-		u, _ := urllib.Parse(url)
-		if method == "GET" || method == "DELETE" {
+		if method == "GET" {
 			queryString := self.Urlencode(query)
-			headers = self.genSign(method, u.Path, queryString, "")
-			if len(query) > 0 {
-				url += "?" + self.Urlencode(query)
-			}
+			queryString, sign := self.genSign(queryString, self.Milliseconds())
+			url += "?" + queryString + fmt.Sprintf("&signature=%s", sign)
 		} else {
-			body = self.Json(query)
-			headers = self.genSign(method, u.Path, "", body.(string))
+			queryString := self.Urlencode(query)
+			queryString, sign := self.genSign(queryString, self.Milliseconds())
+			queryString += fmt.Sprintf("&signature=%s", sign)
+			body = queryString
 		}
-		headers.(map[string]interface{})["Content-Type"] = "application/json"
+		headers = map[string]interface{}{
+			"X-MEXC-APIKEY": self.ApiKey,
+			"Content-Type":  "application/json",
+		}
 	}
 
 	return map[string]interface{}{
