@@ -35,3 +35,9 @@ python/LICENSE.txt
 test_config.json
 api.json
 go/generated
+GTAGS
+GPATH
+GRTAGS
+gtags.files
+gutags
+vimp.vim
