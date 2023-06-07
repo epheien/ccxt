@@ -15,6 +15,7 @@ import (
 	"github.com/georgexdz/ccxt/go/kucoin_hf"
 	"github.com/georgexdz/ccxt/go/margin_bitmax"
 	"github.com/georgexdz/ccxt/go/margin_kucoin"
+	"github.com/georgexdz/ccxt/go/mexc"
 )
 
 type IExchange = base.ExchangeInterface
@@ -47,6 +48,8 @@ func New(exchange string, config *base.ExchangeConfig) (ex IExchange, err error)
 		ex, err = futures_kucoin.New(config)
 	case "futures_binance":
 		ex, err = futures_binance.New(config)
+	case "mexc":
+		ex, err = mexc.New(config)
 	default:
 		err = fmt.Errorf("exchange %s is not supported", exchange)
 	}
