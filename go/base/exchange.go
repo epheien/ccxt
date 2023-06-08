@@ -2237,15 +2237,11 @@ func (self *Exchange) PanicToError(e interface{}) (err error) {
 			//err = errors.New(errCls + ": " + message)
 			err = TypedError(errCls, message)
 		} else {
-			if self.Verbose {
-				log.Println(string(debug.Stack()))
-			}
+			log.Println(string(debug.Stack()))
 			err = fmt.Errorf("Catch unknown panic: %v", e)
 		}
 	default:
-		if self.Verbose {
-			log.Println(string(debug.Stack()))
-		}
+		log.Println(string(debug.Stack()))
 		err = fmt.Errorf("Catch unknown panic: %v", e)
 	}
 	return
