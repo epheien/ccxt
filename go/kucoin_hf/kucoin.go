@@ -576,8 +576,13 @@ func (self *Kucoin) ParseOrder(order interface{}, market interface{}) (result ma
 	filled := self.SafeFloat(order, "dealSize", 0)
 	cost := self.SafeFloat(order, "dealFunds", 0)
 	remaining := amount - filled
-	status := self.IfThenElse(self.ToBool(self.Member(order, "active")), "open", "closed")
-	status = self.IfThenElse(self.ToBool(self.Member(order, "cancelExist")), "canceled", status)
+	status := "closed"
+	if self.SafeBool(order, "active") {
+		status = "open"
+	}
+	if self.SafeBool(order, "cancelExist") {
+		status = "canceled"
+	}
 	fee := map[string]interface{}{
 		"currency": feeCurrency,
 		"cost":     feeCost,
