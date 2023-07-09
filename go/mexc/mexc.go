@@ -1,21 +1,20 @@
-package gateio
+package mexc
 
 import (
 	"crypto/hmac"
-	"crypto/sha512"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	. "github.com/georgexdz/ccxt/go/base"
-	urllib "net/url"
 	"strings"
 )
 
-type Gateio struct {
+type Mexc struct {
 	Exchange
 }
 
-func New(config *ExchangeConfig) (ex *Gateio, err error) {
-	ex = new(Gateio)
+func New(config *ExchangeConfig) (ex *Mexc, err error) {
+	ex = new(Mexc)
 	err = ex.Init(config)
 	ex.Child = ex
 
@@ -28,15 +27,15 @@ func New(config *ExchangeConfig) (ex *Gateio, err error) {
 	return
 }
 
-func (self *Gateio) Describe() []byte {
+func (self *Mexc) Describe() []byte {
 	return []byte(`
 {
-    "id": "gateio",
-    "name": "Gate.io",
+    "id": "mexc",
+    "name": "mexc",
     "countries": [
         "CN"
     ],
-    "version": "4",
+    "version": "3",
     "rateLimit": 1000,
     "pro": true,
     "has": {
@@ -74,37 +73,41 @@ func (self *Gateio) Describe() []byte {
     //     "1w": 604800
     },
     "urls": {
-        "logo": "https://user-images.githubusercontent.com/1294454/31784029-0313c702-b509-11e7-9ccc-bc0da6a0e435.jpg",
+        "logo": "https://www.mexc.com/images/full-logo-light-ko.svg",
         "api": {
-            "public": "https://api.gateio.ws/api/v4",
-            "private": "https://api.gateio.ws/api/v4"
+            "public": "https://api.mexc.com",
+            "private": "https://api.mexc.com"
         },
-        "www": "https://gate.io/",
-        "doc": "https://www.gate.io/docs/apiv4/zh_CN/index.html"
+        "www": "https://www.mexc.com",
+        "doc": "https://mxcdevelop.github.io"
     },
     "api": {
         "public": {
             "get": [
-                "spot/order_book",
-                "spot/currencies",
-                "spot/currency_pairs",
-                "spot/trades",
+                "ping",
+                "time",
+                "defaultSymbols",
+                "exchangeInfo",
+                "depth",
             ]
         },
         "private": {
             "get": [
-                "spot/accounts",
-                "spot/orders",
-                "spot/orders/{order_id}",
-                "margin/accounts"
+                "account",
+                "order",
+                "openOrders",
+                "allOrders",
+                "myTrades",
+                "mxDeduct/enable",
             ],
             "post": [
-                "spot/orders",
-                "wallet/transfers",
-                "wallet/sub_account_transfers"
+                "order",
+                "batchOrders",
+                "mxDeduct/enable",
             ],
             "delete": [
-                "spot/orders/{order_id}"
+                "order",
+                "openOrders",
             ]
         }
     },
@@ -141,53 +144,74 @@ func (self *Gateio) Describe() []byte {
 `)
 }
 
-func (self *Gateio) Market(symbol string) *Market {
+func (self *Mexc) Market(symbol string) *Market {
 	li := strings.Split(symbol, "/")
 	return &Market{
-		Id:     li[0] + "_" + li[1], // 需要大写
+		Id:     li[0] + li[1], // 需要大写
 		Symbol: symbol,
 		Base:   li[0],
 		Quote:  li[1],
 	}
 }
 
-func (self *Gateio) LoadMarkets() map[string]*Market {
+func (self *Mexc) LoadMarkets() map[string]*Market {
 	return nil
 }
 
-func (self *Gateio) FetchMarkets(params map[string]interface{}) ([]*Market, error) {
-	response := self.ApiFuncReturnList("publicGetSpotCurrencyPairs", params, nil, nil)
-	data := response
+func (self *Mexc) FetchMarkets(params map[string]interface{}) ([]*Market, error) {
+	response := self.ApiFunc("publicGetExchangeInfo", params, nil, nil)
+	data := response["symbols"].([]interface{})
 	result := []interface{}{}
-	for i := 0; i < self.Length(data); i++ {
+	for _, market := range data {
 		/*
-			{
-				"amount_precision": 0,
-				"base": "100X",
-				"buy_start": 1622793600,
-				"fee": "0.2",
-				"id": "100X_USDT",
-				"min_quote_amount": "1",
-				"precision": 11,
-				"quote": "USDT",
-				"sell_start": 1608782400,
-				"trade_status": "untradable"
-			}
+		   {
+		       "baseAsset": "AES",
+		       "baseAssetPrecision": 2,
+		       "baseCommissionPrecision": 2,
+		       "baseSizePrecision": "0",
+		       "filters": [],
+		       "isMarginTradingAllowed": false,
+		       "isSpotTradingAllowed": true,
+		       "makerCommission": "0",
+		       "maxQuoteAmount": "5000000.000000000000000000",
+		       "maxQuoteAmountMarket": "500000.000000000000000000",
+		       "orderTypes": [
+		           "LIMIT",
+		           "MARKET",
+		           "LIMIT_MAKER"
+		       ],
+		       "permissions": [
+		           "SPOT"
+		       ],
+		       "quoteAmountPrecision": "5.000000000000000000",
+		       "quoteAmountPrecisionMarket": "5.000000000000000000",
+		       "quoteAsset": "USDT",
+		       "quoteAssetPrecision": 6,
+		       "quoteCommissionPrecision": 6,
+		       "quotePrecision": 6,
+		       "status": "ENABLED",
+		       "symbol": "AESUSDT",
+		       "takerCommission": "0"
+		   },
 		*/
-		market := self.Member(data, i)
-		id := self.SafeString(market, "id", "")
-		baseId, quoteId := self.Unpack2(strings.Split(id, "_"))
+		id := self.SafeString(market, "symbol", "")
+		baseId := self.SafeString(market, "baseAsset")
+		quoteId := self.SafeString(market, "quoteAsset")
 		base := self.SafeCurrencyCode(baseId)
 		quote := self.SafeCurrencyCode(quoteId)
 		symbol := base + "/" + quote
-		active := (self.SafeString(market, "trade_status") == "tradable")
+		active := (self.SafeString(market, "status") == "ENABLED")
 		precision := map[string]interface{}{
-			"amount": self.SafeInteger(market, "amount_precision"),
-			"price":  self.SafeInteger(market, "precision"),
+			"amount": self.SafeInteger(market, "baseAssetPrecision"),
+			"price":  self.SafeInteger(market, "quotePrecision"),
 		}
 		limits := map[string]interface{}{
+			"amount": map[string]interface{}{
+				"min": self.SafeFloat(market, "baseSizePrecision"),
+			},
 			"cost": map[string]interface{}{
-				"min": self.SafeFloat(market, "min_quote_amount"),
+				"min": self.SafeFloat(market, "quoteAmountPrecision"),
+				"max": self.SafeFloat(market, "maxQuoteAmount"),
 			},
 		}
 		result = append(result, map[string]interface{}{
@@ -201,12 +225,13 @@ func (self *Gateio) FetchMarkets(params map[string]interface{}) ([]*Market, erro
 			"precision": precision,
 			"limits":    limits,
 			"info":      market,
+			"spot":      true,
 		})
 	}
 	return self.ToMarkets(result), nil
 }
 
-func (self *Gateio) FetchOrderBook(symbol string, limit int64, params map[string]interface{}) (orderBook *OrderBook, err error) {
+func (self *Mexc) FetchOrderBook(symbol string, limit int64, params map[string]interface{}) (orderBook *OrderBook, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = self.PanicToError(e)
@@ -214,32 +239,31 @@ func (self *Gateio) FetchOrderBook(symbol string, limit int64, params map[string
 	}()
 	marketId := self.MarketId(symbol)
 	request := map[string]interface{}{
-		"currency_pair": marketId,
+		"symbol": marketId,
 	}
 	if limit > 0 {
 		request["limit"] = limit
 	}
-	response := self.ApiFunc("publicGetSpotOrderBook", self.Extend(request, params), nil, nil)
-	timestamp := self.SafeInteger(response, "update")
-	orderbook := self.ParseOrderBook(response, timestamp, "bids", "asks", 0, 1)
+	response := self.ApiFunc("publicGetDepth", self.Extend(request, params), nil, nil)
+	orderbook := self.ParseOrderBook(response, 0, "bids", "asks", 0, 1)
 	return orderbook, nil
 }
 
-func (self *Gateio) FetchBalance(params map[string]interface{}) (balanceResult *Account, err error) {
+func (self *Mexc) FetchBalance(params map[string]interface{}) (balanceResult *Account, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = self.PanicToError(e)
 		}
 	}()
-	response := self.ApiFuncReturnList("privateGetSpotAccounts", params, nil, nil)
+	response := self.ApiFunc("privateGetAccount", params, nil, nil)
 	result := map[string]interface{}{
 		"info": response,
 	}
-	for _, one := range response {
+	for _, one := range response["balances"].([]interface{}) {
 		account := self.Account()
-		free := self.SafeFloat(one, "available")
+		free := self.SafeFloat(one, "free")
 		used := self.SafeFloat(one, "locked")
-		cc := self.SafeString(one, "currency")
+		cc := self.SafeString(one, "asset")
 		account["free"] = free
 		account["used"] = used
 		account["total"] = free + used
@@ -248,7 +272,7 @@ func (self *Gateio) FetchBalance(params map[string]interface{}) (balanceResult *
 	return self.ParseBalance(result), nil
 }
 
-func (self *Gateio) CreateOrder(symbol string, _type string, side string, amount float64, price float64, params map[string]interface{}) (result *Order, err error) {
+func (self *Mexc) CreateOrder(symbol string, _type string, side string, amount float64, price float64, params map[string]interface{}) (result *Order, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = self.PanicToError(e)
@@ -259,15 +283,15 @@ func (self *Gateio) CreateOrder(symbol string, _type string, side string, amount
 	}
 	marketId := self.MarketId(symbol)
 	request := map[string]interface{}{
-		"account":       self.Options["account"],
-		"currency_pair": marketId,
-		"side":          side,
-		"price":         self.Float64ToString(price),
-		"amount":        self.Float64ToString(amount),
+		"type":     strings.ToUpper(_type),
+		"symbol":   marketId,
+		"side":     strings.ToUpper(side),
+		"price":    self.Float64ToString(price),
+		"quantity": self.Float64ToString(amount),
 	}
-	response := self.ApiFunc("privatePostSpotOrders", self.Extend(request, params), nil, nil)
+	response := self.ApiFunc("privatePostOrder", self.Extend(request, params), nil, nil)
 	data := response
-	timestamp := self.SafeInteger(response, "create_time_ms")
+	timestamp := self.SafeInteger(response, "transactTime")
 	order := map[string]interface{}{
 		"id":        self.SafeString(data, "id"),
 		"symbol":    symbol,
@@ -287,7 +311,7 @@ func (self *Gateio) CreateOrder(symbol string, _type string, side string, amount
 	return self.ToOrder(order), nil
 }
 
-func (self *Gateio) ParseOrderStatus(status string) string {
+func (self *Mexc) ParseOrderStatus(status string) string {
 	// NOTE: 类型必须为 map[string]interface{}, 否则无法使用 SafeString
 	statuses := map[string]interface{}{
 		"open":      "open",
@@ -297,7 +321,7 @@ func (self *Gateio) ParseOrderStatus(status string) string {
 	return self.SafeString(statuses, status, status)
 }
 
-func (self *Gateio) ParseOrder(order interface{}, market interface{}) (result map[string]interface{}) {
+func (self *Mexc) ParseOrder(order interface{}, market interface{}) (result map[string]interface{}) {
 	var symbol string
 	if market != nil {
 		symbol = market.(*Market).Symbol
@@ -329,7 +353,7 @@ func (self *Gateio) ParseOrder(order interface{}, market interface{}) (result ma
 	}
 }
 
-func (self *Gateio) FetchOpenOrders(symbol string, since int64, limit int64, params map[string]interface{}) (result []*Order, err error) {
+func (self *Mexc) FetchOpenOrders(symbol string, since int64, limit int64, params map[string]interface{}) (result []*Order, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = self.PanicToError(e)
@@ -357,7 +381,7 @@ func (self *Gateio) FetchOpenOrders(symbol string, since int64, limit int64, par
 	return self.ToOrders(self.ParseOrders(orders, market, since, limit)), nil
 }
 
-func (self *Gateio) FetchTrades(symbol string, since int64, limit int64, params map[string]interface{}) (trades []*Trade, err error) {
+func (self *Mexc) FetchTrades(symbol string, since int64, limit int64, params map[string]interface{}) (trades []*Trade, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = self.PanicToError(e)
@@ -379,7 +403,7 @@ func (self *Gateio) FetchTrades(symbol string, since int64, limit int64, params 
 	return
 }
 
-func (self *Gateio) ParseTrade(trade interface{}, market *Market) (result *Trade) {
+func (self *Mexc) ParseTrade(trade interface{}, market *Market) (result *Trade) {
 	result = &Trade{
 		Id:        self.SafeString(trade, "id"),
 		Timestamp: self.SafeInteger(trade, "create_time_ms"),
@@ -395,7 +419,7 @@ func (self *Gateio) ParseTrade(trade interface{}, market *Market) (result *Trade
 	return
 }
 
-func (self *Gateio) FetchOrder(id string, symbol string, params map[string]interface{}) (result *Order, err error) {
+func (self *Mexc) FetchOrder(id string, symbol string, params map[string]interface{}) (result *Order, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = self.PanicToError(e)
@@ -413,7 +437,7 @@ func (self *Gateio) FetchOrder(id string, symbol string, params map[string]inter
 	return self.ToOrder(self.ParseOrder(response, market)), nil
 }
 
-func (self *Gateio) CancelOrder(id string, symbol string, params map[string]interface{}) (response interface{}, err error) {
+func (self *Mexc) CancelOrder(id string, symbol string, params map[string]interface{}) (response interface{}, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = self.PanicToError(e)
@@ -432,26 +456,22 @@ func (self *Gateio) CancelOrder(id string, symbol string, params map[string]inte
 	return response, nil
 }
 
-func (self *Gateio) genSign(method, url, query, body string) map[string]interface{} {
-	timestamp := self.Milliseconds() / 1000
-	m := sha512.New()
-	if body != "" {
-		m.Write([]byte(body))
+func (self *Mexc) genSign(query string, timestamp int64) (string, string) {
+	var payload string
+	if query == "" {
+		payload = fmt.Sprintf("timestamp=%d", timestamp)
+	} else {
+		payload = fmt.Sprintf("%s&timestamp=%d", query, timestamp)
 	}
-	hashedPayload := hex.EncodeToString(m.Sum(nil))
-	s := fmt.Sprintf("%s\n%s\n%s\n%s\n%d", method, url, query, hashedPayload, timestamp)
-	mac := hmac.New(sha512.New, []byte(self.Secret))
-	mac.Write([]byte(s))
+	mac := hmac.New(sha256.New, []byte(self.Secret))
+	fmt.Println(payload)
+	mac.Write([]byte(payload))
 	sign := hex.EncodeToString(mac.Sum(nil))
-	return map[string]interface{}{
-		"KEY":       self.ApiKey,
-		"Timestamp": fmt.Sprint(timestamp),
-		"SIGN":      sign,
-	}
+	return payload, sign
 }
 
-func (self *Gateio) Sign(path string, api string, method string, params map[string]interface{}, headers interface{}, body interface{}) (ret interface{}) {
-	url := self.Urls["api"].(map[string]interface{})[api].(string) + "/" + self.ImplodeParams(path, params)
+func (self *Mexc) Sign(path string, api string, method string, params map[string]interface{}, headers interface{}, body interface{}) (ret interface{}) {
+	url := self.Urls["api"].(map[string]interface{})[api].(string) + "/api/v3/" + self.ImplodeParams(path, params)
 	query := self.Omit(params, self.ExtractParams(path))
 	if api == "public" {
 		if len(query) > 0 {
@@ -459,18 +479,20 @@ func (self *Gateio) Sign(path string, api string, method string, params map[stri
 		}
 	} else {
 		self.CheckRequiredCredentials()
-		u, _ := urllib.Parse(url)
-		if method == "GET" || method == "DELETE" {
+		if method == "GET" {
 			queryString := self.Urlencode(query)
-			headers = self.genSign(method, u.Path, queryString, "")
-			if len(query) > 0 {
-				url += "?" + self.Urlencode(query)
-			}
+			queryString, sign := self.genSign(queryString, self.Milliseconds())
+			url += "?" + queryString + fmt.Sprintf("&signature=%s", sign)
 		} else {
-			body = self.Json(query)
-			headers = self.genSign(method, u.Path, "", body.(string))
+			queryString := self.Urlencode(query)
+			queryString, sign := self.genSign(queryString, self.Milliseconds())
+			queryString += fmt.Sprintf("&signature=%s", sign)
+			body = queryString
 		}
-		headers.(map[string]interface{})["Content-Type"] = "application/json"
+		headers = map[string]interface{}{
+			"X-MEXC-APIKEY": self.ApiKey,
+			"Content-Type":  "application/json",
+		}
 	}
 
 	return map[string]interface{}{
@@ -481,7 +503,7 @@ func (self *Gateio) Sign(path string, api string, method string, params map[stri
 	}
 }
 
-func (self *Gateio) HandleErrors(
+func (self *Mexc) HandleErrors(
 	code int64, reason string, url string, method string, headers interface{}, body string, response interface{},
 	requestHeaders interface{}, requestBody interface{},
 ) {

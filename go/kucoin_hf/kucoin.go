@@ -109,6 +109,7 @@ func (self *Kucoin) Describe() []byte {
                 "timestamp",
                 "status",
                 "symbols",
+                "v2/symbols",
                 "markets",
                 "market/allTickers",
                 "market/orderbook/level{level}",
@@ -297,8 +298,8 @@ func (self *Kucoin) Describe() []byte {
 }`)
 }
 
-func (self *Kucoin) FetchMarkets(params map[string]interface{}) []interface{} {
-	response := self.ApiFunc("publicGetSymbols", params, nil, nil)
+func (self *Kucoin) FetchMarkets(params map[string]interface{}) ([]*Market, error) {
+	response := self.ApiFunc("publicGetV2Symbols", params, nil, nil)
 	data := self.Member(response, "data")
 	result := []interface{}{}
 	for i := 0; i < self.Length(data); i++ {
@@ -308,11 +309,12 @@ func (self *Kucoin) FetchMarkets(params map[string]interface{}) []interface{} {
 		base := self.SafeCurrencyCode(baseId)
 		quote := self.SafeCurrencyCode(quoteId)
 		symbol := base + "/" + quote
-		active := self.SafeValue(market, "enableTrading", nil)
+		active := self.SafeBool(market, "enableTrading")
 		baseMaxSize := self.SafeFloat(market, "baseMaxSize", 0)
 		baseMinSize := self.SafeFloat(market, "baseMinSize", 0)
 		quoteMaxSize := self.SafeFloat(market, "quoteMaxSize", 0)
-		quoteMinSize := self.SafeFloat(market, "quoteMinSize", 0)
+		//quoteMinSize := self.SafeFloat(market, "quoteMinSize", 0)
+		minFunds := self.SafeFloat(market, "minFunds")
 		precision := map[string]interface{}{
 			"amount": self.PrecisionFromString(self.SafeString(market, "baseIncrement", "")),
 			"price":  self.PrecisionFromString(self.SafeString(market, "priceIncrement", "")),
@@ -327,7 +329,8 @@ func (self *Kucoin) FetchMarkets(params map[string]interface{}) []interface{} {
 				"max": quoteMaxSize / baseMinSize,
 			},
 			"cost": map[string]interface{}{
-				"min": quoteMinSize,
+				//"min": quoteMinSize,
+				"min": minFunds,
 				"max": quoteMaxSize,
 			},
 		}
@@ -344,7 +347,7 @@ func (self *Kucoin) FetchMarkets(params map[string]interface{}) []interface{} {
 			"info":      market,
 		})
 	}
-	return result
+	return self.ToMarkets(result), nil
 }
 
 func (self *Kucoin) FetchCurrencies(params map[string]interface{}) map[string]interface{} {
@@ -462,7 +465,7 @@ func (self *Kucoin) CancelOrder(id string, symbol string, params map[string]inte
 	market := self.Market(symbol)
 	request := map[string]interface{}{
 		"orderId": id,
-		"symbol": market.Id,
+		"symbol":  market.Id,
 	}
 	response = self.ApiFunc("privateDeleteHfOrdersOrderId", self.Extend(request, params), nil, nil)
 	return response, nil
@@ -489,6 +492,22 @@ func (self *Kucoin) FetchOpenOrders(symbol string, since int64, limit int64, par
 	return self.ToOrders(self.ParseOrders(orders, market, since, limit)), nil
 }
 
+func (self *Kucoin) FetchTrades(symbol string, since int64, limit int64, params map[string]interface{}) (trades []*Trade, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = self.PanicToError(e)
+		}
+	}()
+	market := self.Market(symbol)
+	request := map[string]interface{}{
+		"symbol": market.Id,
+	}
+	response := self.ApiFunc("publicGetMarketHistories", self.Extend(request, params), nil, nil)
+	responseData := self.Member(response, "data")
+	trades = self.ParseTrades(responseData.([]interface{}), market, since, limit)
+	return
+}
+
 func (self *Kucoin) FetchOrder(id string, symbol string, params map[string]interface{}) (result *Order, err error) {
 	defer func() {
 		if e := recover(); e != nil {
@@ -506,6 +525,22 @@ func (self *Kucoin) FetchOrder(id string, symbol string, params map[string]inter
 	response := self.ApiFunc("privateGetHfOrdersOrderId", self.Extend(request, params), nil, nil)
 	responseData := self.Member(response, "data")
 	return self.ToOrder(self.ParseOrder(responseData, market)), nil
+}
+
+func (self *Kucoin) ParseTrade(trade interface{}, market *Market) (result *Trade) {
+	result = &Trade{
+		Id:        self.SafeString(trade, "sequence"),
+		Timestamp: self.SafeInteger(trade, "time") / 1000000,
+		Price:     self.SafeFloat(trade, "price"),
+		Amount:    self.SafeFloat(trade, "size"),
+		Side:      self.SafeString(trade, "side"),
+		Info:      trade,
+	}
+	result.Datetime = self.Iso8601(result.Timestamp)
+	if market != nil {
+		result.Symbol = market.Symbol
+	}
+	return
 }
 
 func (self *Kucoin) ParseOrder(order interface{}, market interface{}) (result map[string]interface{}) {
@@ -541,8 +576,13 @@ func (self *Kucoin) ParseOrder(order interface{}, market interface{}) (result ma
 	filled := self.SafeFloat(order, "dealSize", 0)
 	cost := self.SafeFloat(order, "dealFunds", 0)
 	remaining := amount - filled
-	status := self.IfThenElse(self.ToBool(self.Member(order, "active")), "open", "closed")
-	status = self.IfThenElse(self.ToBool(self.Member(order, "cancelExist")), "canceled", status)
+	status := "closed"
+	if self.SafeBool(order, "active") {
+		status = "open"
+	}
+	if self.SafeBool(order, "cancelExist") {
+		status = "canceled"
+	}
 	fee := map[string]interface{}{
 		"currency": feeCurrency,
 		"cost":     feeCost,

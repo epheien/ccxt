@@ -9,6 +9,7 @@ import (
 	"crypto/sha512"
 	"github.com/imdario/mergo"
 	"github.com/thoas/go-funk"
+	"os"
 
 	//"crypto/tls"
 	"encoding/base64"
@@ -42,7 +43,7 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-type JSONTime int64
+//type JSONTime int64
 
 type SignInfo struct {
 	Url     string
@@ -53,22 +54,22 @@ type SignInfo struct {
 
 // Market struct
 type Market struct {
-	Id             string  `json:"id"`     // exchange specific
-	Symbol         string  `json:"symbol"` // ccxt unified
-	Base           string  `json:"base"`
-	BaseNumericId  string  `json:"baseNumericId"`
-	Quote          string  `json:"quote"`
-	QuoteNumericId string  `json:"quoteNumericId"`
-	BaseId         string  `json:"baseId"`  // from bitmex
-	QuoteId        string  `json:"quoteId"` // from bitmex
-	Active         bool    `json:"active"`  // from bitmex
-	Taker          float64 `json:"taker"`   // from bitmex
-	Maker          float64 `json:"maker"`   // from bitmex
-	Type           string  `json:"type"`    // from bitmex
-	Spot           bool    `json:"spot"`    // from bitmex
-	Swap           bool    `json:"swap"`    // from bitmex
-	Future         bool    `json:"future"`  // from bitmex
-	Option         bool
+	Id             string      `json:"id"`     // exchange specific
+	Symbol         string      `json:"symbol"` // ccxt unified
+	Base           string      `json:"base"`
+	BaseNumericId  string      `json:"baseNumericId"`
+	Quote          string      `json:"quote"`
+	QuoteNumericId string      `json:"quoteNumericId"`
+	BaseId         string      `json:"baseId"`  // from bitmex
+	QuoteId        string      `json:"quoteId"` // from bitmex
+	Active         bool        `json:"active"`  // from bitmex
+	Taker          float64     `json:"taker"`   // from bitmex
+	Maker          float64     `json:"maker"`   // from bitmex
+	Type           string      `json:"type"`    // from bitmex
+	Spot           bool        `json:"spot"`    // from bitmex
+	Swap           bool        `json:"swap"`    // from bitmex
+	Future         bool        `json:"future"`  // from bitmex
+	Option         bool        `json:"option"`
 	Prediction     bool        `json:"prediction"` // from bitmex
 	Precision      Precision   `json:"precision"`
 	Limits         Limits      `json:"limits"`
@@ -78,17 +79,19 @@ type Market struct {
 
 // Precision struct
 type Precision struct {
-	Amount int `json:"amount"`
-	Base   int `json:"base"`
-	Price  int `json:"price"`
-	Cost   int `json:"cost"`
+	Price       int `json:"price"` // 精度, 即小数位数, 例如 0.01 即为2, 1 即为 0
+	PriceSacle  int `priceScale`   // 缩放, 10 的整数倍, 其他均为非法值. > 1 时才使用. 例如 0.25 => amount: 25, scale 100
+	Amount      int `json:"amount"`
+	AmountScale int `amountScale`
+	Base        int `json:"base"`
+	Quote       int `json:"quote"`
 }
 
 // Limits struct
 type Limits struct {
-	Amount MinMax `json:"amount"`
-	Price  MinMax `json:"price"`
-	Cost   MinMax `json:"cost"`
+	Amount MinMax `json:"amount"` // 最小最大下单数量
+	Price  MinMax `json:"price"`  // 最小最大下单价格
+	Cost   MinMax `json:"cost"`   // 最小最大下单交易额
 }
 
 // MinMax struct
@@ -477,10 +480,10 @@ type Trade struct {
 	Symbol    string      `json:"symbol"`
 	Amount    float64     `json:"amount"`
 	Price     float64     `json:"price"`
-	Timestamp JSONTime    `json:"timestamp"`
+	Timestamp int64       `json:"timestamp"`
 	Datetime  string      `json:"datetime"`
-	Order     string      `json:"order"`
-	Type      string      `json:"type"`
+	Order     string      `json:"order"` // ignore
+	Type      string      `json:"type"`  // ignore
 	Side      string      `json:"side"`
 	Info      interface{} `json:"info"`
 }
@@ -576,7 +579,7 @@ type ExchangeInterface interface {
 	FetchOrderBook(symbol string, limit int64, params map[string]interface{}) (*OrderBook, error)
 	FetchStatus(params map[string]interface{}) (*ExchangeStatus, error) // 默认实现为返回 ok 状态
 	// FetchL2OrderBook(symbol string, limit *int, params map[string]interface{}) (OrderBook, error)
-	// FetchTrades(symbol string, since *JSONTime, params map[string]interface{}) ([]Trade, error)
+	FetchTrades(symbol string, since int64, limit int64, params map[string]interface{}) ([]*Trade, error)
 	FetchOrder(id string, symbol string, params map[string]interface{}) (*Order, error)
 	// FetchOrders(symbol *string, since *JSONTime, limit *int, params map[string]interface{}) ([]Order, error)
 	FetchOpenOrders(symbol string, since int64, limit int64, params map[string]interface{}) ([]*Order, error)
@@ -586,7 +589,7 @@ type ExchangeInterface interface {
 	FetchPositions(symbol string, params map[string]interface{}) ([]*Position, error)
 	FetchMarkPrice(symbol string, params map[string]interface{}) (*MarkPrice, error)
 	//FetchCurrencies() (map[string]*Currency, error)
-	FetchMarkets(params map[string]interface{}) []interface{}
+	FetchMarkets(params map[string]interface{}) ([]*Market, error)
 	FetchAccounts(params map[string]interface{}) []interface{}
 
 	CreateOrder(symbol, otype, side string, amount float64, price float64, params map[string]interface{}) (*Order, error)
@@ -596,7 +599,7 @@ type ExchangeInterface interface {
 
 	// Describe() []byte
 	//GetMarkets() map[string]*Market
-	SetMarkets([]interface{}, map[string]interface{}) map[string]*Market
+	SetMarkets([]*Market, map[string]interface{}) map[string]*Market
 	//GetMarketsById() map[string]Market
 	//SetMarketsById(map[string]Market)
 	//GetCurrencies() map[string]Currency
@@ -626,6 +629,7 @@ type ExchangeInterface interface {
 	ApiFunc(function string, params interface{}, headers map[string]interface{}, body interface{}) (response map[string]interface{})
 	ApiFuncRaw(function string, params map[string]interface{}, headers map[string]interface{}, body interface{}) (response []byte)
 	SetHttpLib(lib string) // fasthttp, net/http
+	SetProxy(proxy string)
 }
 
 type ExchangeInterfaceInternal interface {
@@ -642,6 +646,7 @@ type ExchangeInterfaceInternal interface {
 	FetchViaFastHttp(url string, method string, headers map[string]interface{}, body interface{}) (response []byte, jsonResponse interface{})
 	Request(path string, api string, method string, params map[string]interface{}, headers map[string]interface{}, body interface{}) (response interface{})
 	Describe() []byte
+	ParseTrade(interface{}, *Market) *Trade
 	ParseOrder(interface{}, interface{}) map[string]interface{}
 	HandleErrors(code int64, reason string, url string, method string, headers interface{}, body string, response interface{}, requestHeaders interface{}, requestBody interface{})
 	Market(string) *Market
@@ -689,6 +694,9 @@ func (self *Exchange) SetHttpLib(lib string) {
 
 func (self *Exchange) SetProxy(proxy string) {
 	self.FastHttpClient.Dial = fasthttpproxy.FasthttpSocksDialer(proxy)
+	// 以下用于支持 net/http 库
+	os.Setenv("HTTP_PROXY", proxy)
+	os.Setenv("HTTPS_PROXY", proxy)
 }
 
 func (self *Exchange) Init(config *ExchangeConfig) (err error) {
@@ -776,8 +784,20 @@ func (self *Exchange) Describe() []byte {
 	return nil
 }
 
-func (self *Exchange) FetchMarkets(params map[string]interface{}) []interface{} {
-	return nil
+func (self *Exchange) FetchMarkets(params map[string]interface{}) ([]*Market, error) {
+	return nil, errors.New("FetchMarkets not supported yet")
+}
+
+func (self *Exchange) ToMarket(market map[string]interface{}) *Market {
+	return self.MarketFromMap(market)
+}
+
+func (self *Exchange) ToMarkets(markets []interface{}) []*Market {
+	result := []*Market{}
+	for _, market := range markets {
+		result = append(result, self.ToMarket(market.(map[string]interface{})))
+	}
+	return result
 }
 
 func (self *Exchange) FetchTicker(symbol string, params map[string]interface{}) (*Ticker, error) {
@@ -813,52 +833,76 @@ func (self *Exchange) MarketId(symbol string) string {
 	}
 }
 
-func MarketFromMap(o interface{}) *Market {
+func (self *Exchange) MarketFromMap(o interface{}) *Market {
 	p := &Market{}
 
 	if m, ok := o.(map[string]interface{}); ok {
-		p.Info = o
 		p.Id = m["id"].(string)
 		p.Symbol = m["symbol"].(string)
 		p.Base = m["base"].(string)
+		//p.BaseNumericId
 		p.Quote = m["quote"].(string)
+		//p.QuoteNumericId
 		p.BaseId = m["baseId"].(string)
+		p.QuoteId = m["quoteId"].(string)
+		if m["active"] != nil {
+			p.Active = m["active"].(bool)
+		}
 		if m["taker"] != nil {
 			p.Taker = m["taker"].(float64)
 		}
 		if m["maker"] != nil {
 			p.Maker = m["maker"].(float64)
 		}
-		if m["precision"] != nil {
-			precisionMap := m["precision"].(map[string]interface{})
-			if precisionMap["amount"] != nil {
-				p.Precision.Amount = precisionMap["amount"].(int)
-			}
-			if precisionMap["price"] != nil {
-				p.Precision.Price = precisionMap["price"].(int)
-			}
+		if m["type"] != nil {
+			p.Type = m["type"].(string)
 		}
 		if m["spot"] != nil {
 			p.Spot = m["spot"].(bool)
 		}
-		if m["type"] != nil {
-			p.Type = m["type"].(string)
+		if m["swap"] != nil {
+			p.Swap = m["swap"].(bool)
 		}
 		if m["futures"] != nil {
 			p.Future = m["futures"].(bool)
 		}
-		if m["swap"] != nil {
-			p.Swap = m["swap"].(bool)
-		}
 		if m["option"] != nil {
 			p.Option = m["option"].(bool)
 		}
+		//p.Prediction
+		if m["precision"] != nil {
+			precisionMap := m["precision"].(map[string]interface{})
+			if precisionMap["amount"] != nil {
+				p.Precision.Amount = int(ToInteger(precisionMap["amount"]))
+			}
+			if precisionMap["price"] != nil {
+				p.Precision.Price = int(ToInteger(precisionMap["price"]))
+			}
+		}
+		//p.Limits
+		if m["limits"] != nil {
+			limitsMap := m["limits"].(map[string]interface{})
+			if limitsMap["amount"] != nil {
+				p.Limits.Amount.Min = self.SafeFloat(limitsMap["amount"], "min")
+				p.Limits.Amount.Max = self.SafeFloat(limitsMap["amount"], "max")
+			}
+			if limitsMap["price"] != nil {
+				p.Limits.Price.Min = self.SafeFloat(limitsMap["price"], "min")
+				p.Limits.Price.Max = self.SafeFloat(limitsMap["price"], "max")
+			}
+			if limitsMap["cost"] != nil {
+				p.Limits.Cost.Min = self.SafeFloat(limitsMap["cost"], "min")
+				p.Limits.Cost.Max = self.SafeFloat(limitsMap["cost"], "max")
+			}
+		}
+		//p.Lot
+		p.Info = m["info"]
 	}
 
 	return p
 }
 
-func (self *Exchange) SetMarkets(markets []interface{}, currencies map[string]interface{}) map[string]*Market {
+func (self *Exchange) SetMarkets(markets []*Market, currencies map[string]interface{}) map[string]*Market {
 	symbols := make([]string, len(markets))
 	Ids := make([]string, len(markets))
 	marketsBySymbol := make(map[string]*Market, len(markets))
@@ -866,8 +910,7 @@ func (self *Exchange) SetMarkets(markets []interface{}, currencies map[string]in
 	baseCurrencies := make([]*Currency, 0)
 	quoteCurrencies := make([]*Currency, 0)
 
-	for i, o := range markets {
-		market := MarketFromMap(o)
+	for i, market := range markets {
 		marketsBySymbol[market.Symbol] = market
 		marketsById[market.Id] = market
 		symbols[i] = market.Symbol
@@ -973,7 +1016,13 @@ func (self *Exchange) LoadMarkets() map[string]*Market {
 		currencies = self.Child.FetchCurrencies(map[string]interface{}{})
 	}
 
-	markets := self.Child.FetchMarkets(nil)
+	markets, err := self.Child.FetchMarkets(nil)
+	if err != nil {
+		if err.Error() == "FetchMarkets not supported yet" {
+			return map[string]*Market{}
+		}
+		self.RaiseException("ExchangeError", fmt.Sprintf("failed to FetchMarkets(): %s", err))
+	}
 	return self.Child.SetMarkets(markets, currencies)
 }
 
@@ -1535,7 +1584,11 @@ func (self *Exchange) SafeInteger(d interface{}, key string, def ...int64) (ret 
 			} else if v, ok := val.(string); ok {
 				i, err := strconv.ParseInt(v, 10, 64)
 				if err != nil {
-					panic(fmt.Sprintf("SafeInteger error (%s): %s", err.Error(), v))
+					f, err := strconv.ParseFloat(v, 64)
+					if err != nil {
+						panic(fmt.Sprintf("SafeInteger error (%s): %s", err.Error(), v))
+					}
+					i = int64(f)
 				}
 				return i
 			}
@@ -1546,6 +1599,14 @@ func (self *Exchange) SafeInteger(d interface{}, key string, def ...int64) (ret 
 
 func (self *Exchange) SafeInteger2(d interface{}, key1 string, key2 string, defaultVal int64) int64 {
 	return ToInteger(self.SafeEither(d, key1, key2, defaultVal))
+}
+
+func (self *Exchange) SafeBool(d interface{}, key string, def ...bool) bool {
+	var defaultVal bool
+	if len(def) > 0 {
+		defaultVal = def[0]
+	}
+	return self.ToBool(self.SafeValue(d, key, defaultVal))
 }
 
 func (self *Exchange) SafeFloat2(d interface{}, key1 string, key2 string, defaultVal float64) float64 {
@@ -1789,11 +1850,6 @@ func (self *Exchange) Uuid() string {
 	return uuid.NewV4().String()
 }
 
-func (self *Exchange) CostToPrecision(symbol string, cost float64) string {
-	ret, _ := DecimalToPrecision(cost, Round, self.Markets[symbol].Precision.Cost, DecimalPlaces, NoPadding)
-	return ret
-}
-
 func (self *Exchange) PriceToPrecision(symbol string, price float64) string {
 	if self.Markets[symbol] == nil {
 		return self.Float64ToString(price)
@@ -2028,6 +2084,10 @@ func (self *Exchange) CancelOrder(id string, symbol string, params map[string]in
 	return nil, fmt.Errorf("%s CancelOrder not supported yet", self.Id)
 }
 
+func (self *Exchange) FetchTrades(symbol string, since int64, limit int64, params map[string]interface{}) ([]*Trade, error) {
+	return nil, fmt.Errorf("%s FetchTrades not supported yet", self.Id)
+}
+
 func (self *Exchange) FetchOrder(id string, symbol string, params map[string]interface{}) (*Order, error) {
 	return nil, fmt.Errorf("%s FetchOrder not supported yet", self.Id)
 }
@@ -2052,11 +2112,31 @@ func (self *Exchange) SetUid(s string) {
 	self.Uid = s
 }
 
+func (self *Exchange) ParseTrades(trades []interface{}, market *Market, since int64, limit int64) (result []*Trade) {
+	result = []*Trade{}
+	for _, trade := range trades {
+		result = append(result, self.Child.ParseTrade(trade, market))
+	}
+	return result
+}
+
+func (self *Exchange) ReverseTrades(slice []*Trade) []*Trade {
+	for i, j := 0, len(slice)-1; i < j; i, j = i+1, j-1 {
+		slice[i], slice[j] = slice[j], slice[i]
+	}
+	return slice
+}
+
 func (self *Exchange) ParseOrders(orders interface{}, market interface{}, since int64, limit int64) (result []interface{}) {
+	result = []interface{}{}
 	for _, order := range orders.([]interface{}) {
 		result = append(result, self.Child.ParseOrder(order, market))
 	}
 	return result
+}
+
+func (self *Exchange) ParseTrade(trade interface{}, market *Market) *Trade {
+	return &Trade{}
 }
 
 func (self *Exchange) ParseOrder(order interface{}, market interface{}) map[string]interface{} {
@@ -2093,6 +2173,7 @@ func (self *Exchange) Nonce() int64 {
 	return self.Milliseconds()
 }
 
+// 0.00010000 => 4
 func (self *Exchange) PrecisionFromString(s string) int {
 	re := regexp.MustCompile(`0+$`)
 	s = re.ReplaceAllString(s, "")
@@ -2105,7 +2186,7 @@ func (self *Exchange) PrecisionFromString(s string) int {
 }
 
 func RaiseException(errCls interface{}, msg interface{}) {
-	panic([]string{errCls.(string), msg.(string)})
+	panic(fmt.Sprintf("%s: %s", errCls.(string), msg.(string)))
 }
 
 func (self *Exchange) RaiseInternalException(msg interface{}) {
@@ -2143,23 +2224,24 @@ func (self *Exchange) ThrowBroadlyMatchedException(broad interface{}, s interfac
 
 func (self *Exchange) PanicToError(e interface{}) (err error) {
 	switch e.(type) {
-	case []string:
-		args := e.([]string)
+	case string, []string:
+		var args []string
+		if str, ok := e.(string); ok {
+			args = strings.SplitN(str, ": ", 2)
+		} else {
+			args = e.([]string)
+		}
 		if len(args) == 2 {
 			errCls := args[0]
 			message := args[1]
 			//err = errors.New(errCls + ": " + message)
 			err = TypedError(errCls, message)
 		} else {
-			if self.Verbose {
-				log.Println(string(debug.Stack()))
-			}
+			log.Println(string(debug.Stack()))
 			err = fmt.Errorf("Catch unknown panic: %v", e)
 		}
 	default:
-		if self.Verbose {
-			log.Println(string(debug.Stack()))
-		}
+		log.Println(string(debug.Stack()))
 		err = fmt.Errorf("Catch unknown panic: %v", e)
 	}
 	return

@@ -1,4 +1,4 @@
-package kucoin_hf
+package mexc
 
 import (
 	"encoding/json"
@@ -11,7 +11,7 @@ import (
 )
 
 var symbol = "BTC/USDT"
-var ex *Kucoin
+var ex *Mexc
 var err error
 
 func setup() {
@@ -35,7 +35,7 @@ func TestMain(m *testing.M) {
 	os.Exit(rc)
 }
 
-func loadApiKey(ex *Kucoin) {
+func loadApiKey(ex *Mexc) {
 	plan, err := ioutil.ReadFile("api.json")
 	if err != nil {
 		return
@@ -59,28 +59,15 @@ func loadApiKey(ex *Kucoin) {
 
 func TestAll(t *testing.T) {
 	testFetchMarkets(t)
-	testFetchOrderBook(t)
+	//testFetchOrderBook(t)
 	//testFetchTrades(t)
 	//testFetchTicker(t)
 	//testFetchOHLCV(t)
 	//testFetchBalance(t)
 	//order := testCreateOrder(t); _ = order
-	//testFetchOrder(t, "63a42a5f77056300018c3e48")
+	//testFetchOrder(t, "11555864984")
 	//testFetchOpenOrders(t)
-	//testCancelOrder(t, "63a42a5f77056300018c3e48")
-
-	// 余额划转
-	//result := ex.ApiFunc("privatePostV2AccountsInnerTransfer",
-	//	map[string]interface{}{
-	//		"clientOid": ex.Uuid(),
-	//		"currency": "BTC",
-	//		"from": "trade",
-	//		"to": "trade_hf",
-	//		"amount": "0.01",
-	//	},
-	//	nil, nil,
-	//)
-	//log.Println(result)
+	//testCancelOrder(t, "11555864984")
 }
 
 func testFetchMarkets(t *testing.T) {
@@ -89,11 +76,11 @@ func testFetchMarkets(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	log.Println("##### FetchMarkets:", ex.JsonIndent(markets[0]))
+	log.Println("##### FetchMarkets:", ex.JsonIndent(markets[1]))
 	count := 0
 	for _, market := range markets {
 		if !market.Active {
-			log.Println(market.Symbol, "is not active!")
+			//log.Println(market.Symbol, "is not active!")
 			continue
 		}
 		if market.QuoteId != "USDT" {
@@ -119,8 +106,13 @@ func testFetchTrades(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	//log.Println("##### FetchTrades:", symbol, ex.JsonIndent(trades))
-	if len(trades) > 0 {
+	length := len(trades)
+	if length >= 3 {
+		log.Println("##### FetchTrades:", symbol, ex.JsonIndent(trades[length-4:length-1]))
+	} else {
+		log.Println("##### FetchTrades:", symbol, ex.JsonIndent(trades))
+	}
+	if length > 0 {
 		length := len(trades)
 		log.Println(symbol, "Trade Frequency:", float64(length)*1000/float64(trades[length-1].Timestamp-trades[0].Timestamp))
 	}
@@ -149,7 +141,6 @@ func testFetchBalance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	balance.Info = nil
 	log.Println("##### FetchBalance:", ex.JsonIndent(balance))
 }
 
@@ -159,7 +150,7 @@ func testCreateOrder(t *testing.T) *base.Order {
 	if err != nil {
 		t.Fatal(err)
 	}
-	log.Println("##### CreateOrder:", symbol, order.Id)
+	log.Println("##### CreateOrder:", symbol, ex.JsonIndent(order))
 	return order
 }
 
@@ -178,7 +169,7 @@ func testFetchOpenOrders(t *testing.T) []*base.Order {
 	if err != nil {
 		t.Fatal(err)
 	}
-	log.Println("##### FetchOpenOrders:", ex.Json(openOrders))
+	log.Println("##### FetchOpenOrders:", ex.JsonIndent(openOrders))
 	return openOrders
 }
 

@@ -58,7 +58,9 @@ func loadApiKey(ex *Gateio) {
 }
 
 func TestAll(t *testing.T) {
+	testFetchMarkets(t)
 	testFetchOrderBook(t)
+	testFetchTrades(t)
 	//testFetchTicker(t)
 	//testFetchOHLCV(t)
 	//testFetchBalance(t)
@@ -68,6 +70,27 @@ func TestAll(t *testing.T) {
 	//testCancelOrder(t, "11555864984")
 }
 
+func testFetchMarkets(t *testing.T) {
+	// @ FetchMarkets
+	markets, err := ex.FetchMarkets(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	log.Println("##### FetchMarkets:", ex.JsonIndent(markets[1]))
+	count := 0
+	for _, market := range markets {
+		if !market.Active {
+			//log.Println(market.Symbol, "is not active!")
+			continue
+		}
+		if market.QuoteId != "USDT" {
+			continue
+		}
+		count += 1
+	}
+	log.Printf("*/USDT count %d / %d", count, len(markets))
+}
+
 func testFetchOrderBook(t *testing.T) {
 	// @ FetchOrderBook
 	orderbook, err := ex.FetchOrderBook(symbol, 5, nil)
@@ -75,6 +98,24 @@ func testFetchOrderBook(t *testing.T) {
 		t.Fatal(err)
 	}
 	log.Println("##### FetchOrderBook:", symbol, ex.JsonIndent(orderbook))
+}
+
+func testFetchTrades(t *testing.T) {
+	// @ FetchTrades
+	trades, err := ex.FetchTrades(symbol, 0, 0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	length := len(trades)
+	if length >= 3 {
+		log.Println("##### FetchTrades:", symbol, ex.JsonIndent(trades[length-4:length-1]))
+	} else {
+		log.Println("##### FetchTrades:", symbol, ex.JsonIndent(trades))
+	}
+	if length > 0 {
+		length := len(trades)
+		log.Println(symbol, "Trade Frequency:", float64(length)*1000/float64(trades[length-1].Timestamp-trades[0].Timestamp))
+	}
 }
 
 func testFetchTicker(t *testing.T) {
