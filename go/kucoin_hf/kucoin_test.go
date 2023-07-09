@@ -114,7 +114,7 @@ func testFetchBalance(t *testing.T) {
 		t.Fatal(err)
 	}
 	balance.Info = nil
-	log.Println("##### FetchBalance:", ex.Json(balance))
+	log.Println("##### FetchBalance:", ex.JsonIndent(balance))
 }
 
 func testCreateOrder(t *testing.T) *base.Order {
@@ -133,7 +133,7 @@ func testFetchOrder(t *testing.T, orderId string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	log.Println("##### FetchOrder:", ex.Json(o))
+	log.Println("##### FetchOrder:", ex.JsonIndent(o))
 }
 
 func testFetchOpenOrders(t *testing.T) []*base.Order {
