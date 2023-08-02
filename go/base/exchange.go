@@ -630,6 +630,7 @@ type ExchangeInterface interface {
 	ApiFuncRaw(function string, params map[string]interface{}, headers map[string]interface{}, body interface{}) (response []byte)
 	SetHttpLib(lib string) // fasthttp, net/http
 	SetProxy(proxy string)
+	Uuid() string
 }
 
 type ExchangeInterfaceInternal interface {
