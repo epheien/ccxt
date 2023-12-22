@@ -970,7 +970,7 @@ func (self *Binance) FetchTrades(symbol string, since int64, limit int64, params
 	market := self.Market(symbol)
 	request := map[string]interface{}{
 		"symbol": market.Id,
-		"limit":  1000, // 默认 500
+		"limit":  100, // 默认 500
 	}
 	if limit > 0 {
 		request["limit"] = limit
