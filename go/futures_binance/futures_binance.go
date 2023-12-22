@@ -500,8 +500,12 @@ func (self *FuturesBinance) FetchPositions(symbol string, params map[string]inte
 			UnrealPnl:  self.SafeFloat(item, "unRealizedProfit", 0),
 			Info:       item,
 		}
-		if amount < 0 {
-			pos.Side = "short"
+		if strings.ToLower(self.SafeString(item, "positionSide")) == "both" {
+			if amount < 0 {
+				pos.Side = "short"
+			}
+		} else {
+			pos.Side = strings.ToLower(self.SafeString(item, "positionSide"))
 		}
 		result = append(result, pos)
 	}
