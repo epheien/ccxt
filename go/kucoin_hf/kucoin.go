@@ -587,14 +587,9 @@ func (self *Kucoin) ParseOrder(order interface{}, market interface{}) (result ma
 		"currency": feeCurrency,
 		"cost":     feeCost,
 	}
-	if self.ToBool(_type == "market") {
-		if self.ToBool(price == 0.0) {
-			if self.ToBool(!self.TestNil(cost) && !self.TestNil(filled)) {
-				if self.ToBool(cost > 0 && filled > 0) {
-					price = cost / filled
-				}
-			}
-		}
+	average := 0.0
+	if cost > 0 && filled > 0 {
+		average = cost / filled
 	}
 	clientOrderId := self.SafeString(order, "clientOid", "")
 	return map[string]interface{}{
@@ -614,7 +609,7 @@ func (self *Kucoin) ParseOrder(order interface{}, market interface{}) (result ma
 		"status":             status,
 		"info":               order,
 		"lastTradeTimestamp": nil,
-		"average":            nil,
+		"average":            average,
 		"trades":             nil,
 	}
 }
