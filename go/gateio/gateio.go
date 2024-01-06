@@ -428,7 +428,8 @@ func (self *Gateio) CancelOrder(id string, symbol string, params map[string]inte
 		"order_id":      id,
 		"currency_pair": market.Id,
 	}
-	response = self.ApiFunc("privateDeleteSpotOrdersOrderId", self.Extend(request, params), nil, nil)
+	// NOTE: 撤掉的返回类型有时候是 []interface{} 有时候是 map[string]interface{}, 暂时不管
+	response = self.ApiFuncRaw("privateDeleteSpotOrdersOrderId", self.Extend(request, params).(map[string]interface{}), nil, nil)
 	return response, nil
 }
 

@@ -179,5 +179,5 @@ func testCancelOrder(t *testing.T, orderId string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	log.Println("##### CancelOrder:", resp)
+	log.Println("##### CancelOrder:", string(resp.([]byte)))
 }
