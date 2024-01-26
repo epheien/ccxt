@@ -1,9 +1,13 @@
 package futures_gateio
 
 import (
+	"crypto/hmac"
+	"crypto/sha512"
+	"encoding/hex"
 	"fmt"
 	. "github.com/georgexdz/ccxt/go/base"
 	"math"
+	urllib "net/url"
 	"strings"
 )
 
@@ -64,8 +68,8 @@ func (self *FuturesGateio) Describe() []byte {
     "urls": {
         "logo": "",
         "api": {
-            "public": "https://api.gateio.ws/api", // v4 在 version 字段
-            "private": "https://api.gateio.ws/api"
+            "public": "https://api.gateio.ws/api/v4",
+            "private": "https://api.gateio.ws/api/v4",
         },
         "www": "https://www.gate.io",
         "doc": "https://www.gate.io/docs/developers/apiv4/en/#futures",
@@ -80,6 +84,7 @@ func (self *FuturesGateio) Describe() []byte {
         },
         "private": {
             "get": [
+				"futures/usdt/accounts",
             ],
             "post": [
             ],
@@ -150,53 +155,31 @@ func (self *FuturesGateio) FetchBalance(params map[string]interface{}) (balanceR
 		}
 	}()
 
-	response := self.ApiFunc("privateGetV2Account", params, nil, nil)
+	response := self.ApiFunc("privateGetFuturesUsdtAccounts", params, nil, nil)
 
 	result := map[string]interface{}{
 		"info": response,
 	}
 
-	balances := response["assets"].([]interface{})
-	for _, balance := range balances {
-		account := self.Account()
-		total := self.SafeFloat(balance, "marginBalance")
-		free := self.SafeFloat(balance, "availableBalance")
-		account["total"] = total
-		account["free"] = free
-		account["used"] = total - free
-		account["unrealPnl"] = self.SafeFloat(balance, "unrealizedProfit")
-		currency := self.SafeString(balance, "asset")
-		result[currency] = account
-	}
+	balance := response
+	account := self.Account()
+	// 钱包余额是用户累计充值提现和盈亏结算(包括已实现盈亏, 资金费用,手续费及推荐返佣)之后的余额,
+	// 不包含未实现盈亏. total = SUM(history_dnw, history_pnl, history_fee, history_refr, history_fund)
+	//total := self.SafeFloat(balance, "total")
+	free := self.SafeFloat(balance, "available") // NOTE: 不包含未实现盈亏
+	used := self.SafeFloat(balance, "order_margin") + self.SafeFloat(balance, "position_margin")
+	unrealPnl := self.SafeFloat(balance, "unrealised_pnl")
+	account["free"] = free + unrealPnl // 我们的 free 包含未实验盈亏
+	account["used"] = used
+	account["total"] = free + used
+	account["unrealPnl"] = unrealPnl
+	currency := self.SafeString(balance, "currency")
+	result[currency] = account
 
-	return self.ParseBalance(result), nil
-}
-
-func (self *FuturesGateio) FetchBalanceV1(params map[string]interface{}) (balanceResult *Account, err error) {
-	defer func() {
-		if e := recover(); e != nil {
-			err = self.PanicToError(e)
-		}
-	}()
-
-	response := self.ApiFunc("privateGetAccount", params, nil, nil)
-
-	result := map[string]interface{}{
-		"info": response,
-	}
-
-	balances := response["assets"].([]interface{})
-	for _, balance := range balances {
-		account := self.Account()
-		total := self.SafeFloat(balance, "marginBalance")
-		used := self.SafeFloat(balance, "maintMargin") + self.SafeFloat(balance, "initialMargin")
-		account["total"] = total
-		account["used"] = used
-		account["free"] = total - used
-		account["unrealPnl"] = self.SafeFloat(balance, "unrealizedProfit")
-		currency := self.SafeString(balance, "asset")
-		result[currency] = account
-	}
+	// point
+	account = self.Account()
+	account["free"] = self.SafeFloat(balance, "point")
+	result["point"] = account
 
 	return self.ParseBalance(result), nil
 }
@@ -495,37 +478,47 @@ func (self *FuturesGateio) FetchPositions(symbol string, params map[string]inter
 	return
 }
 
+func (self *FuturesGateio) genSign(method, url, query, body string) map[string]interface{} {
+	timestamp := self.Milliseconds() / 1000
+	m := sha512.New()
+	if body != "" {
+		m.Write([]byte(body))
+	}
+	hashedPayload := hex.EncodeToString(m.Sum(nil))
+	s := fmt.Sprintf("%s\n%s\n%s\n%s\n%d", method, url, query, hashedPayload, timestamp)
+	mac := hmac.New(sha512.New, []byte(self.Secret))
+	mac.Write([]byte(s))
+	sign := hex.EncodeToString(mac.Sum(nil))
+	return map[string]interface{}{
+		"KEY":       self.ApiKey,
+		"Timestamp": fmt.Sprint(timestamp),
+		"SIGN":      sign,
+	}
+}
+
 func (self *FuturesGateio) Sign(path string, api string, method string, params map[string]interface{}, headers interface{}, body interface{}) (ret interface{}) {
-	url := self.Urls["api"].(map[string]interface{})[api].(string) + fmt.Sprintf("/%s/%s", self.Version, path)
-	if path == "userDataStream" {
-		body = self.Urlencode(params)
-		headers = map[string]interface{}{
-			"X-MBX-APIKEY": self.ApiKey,
-			"Content-Type": "application/x-www-form-urlencoded",
-		}
-	} else if api == "private" {
-		self.CheckRequiredCredentials()
-		query := self.Urlencode(self.Extend(map[string]interface{}{
-			"timestamp":  self.Nonce(),
-			"recvWindow": self.Options["recvWindow"],
-		}, params))
-		signature := self.Hmac(query, self.Secret, "sha256", "hex")
-		query += fmt.Sprintf("&signature=%s", signature)
-		headers = map[string]interface{}{
-			"X-MBX-APIKEY": self.ApiKey,
-		}
-		if method == "GET" {
-			url += "?" + query
-		} else {
-			body = query
-			headers.(map[string]interface{})["Content-Type"] = "application/x-www-form-urlencoded"
+	url := self.Urls["api"].(map[string]interface{})[api].(string) + "/" + self.ImplodeParams(path, params)
+	query := self.Omit(params, self.ExtractParams(path))
+	if api == "public" {
+		if len(query) > 0 {
+			url += "?" + self.Urlencode(query)
 		}
 	} else {
-		// api == "public"
-		if len(params) > 0 {
-			url += "?" + self.Urlencode(params)
+		self.CheckRequiredCredentials()
+		u, _ := urllib.Parse(url)
+		if method == "GET" || method == "DELETE" {
+			queryString := self.Urlencode(query)
+			headers = self.genSign(method, u.Path, queryString, "")
+			if len(query) > 0 {
+				url += "?" + self.Urlencode(query)
+			}
+		} else {
+			body = self.Json(query)
+			headers = self.genSign(method, u.Path, "", body.(string))
 		}
+		headers.(map[string]interface{})["Content-Type"] = "application/json"
 	}
+
 	return map[string]interface{}{
 		"url":     url,
 		"method":  method,
