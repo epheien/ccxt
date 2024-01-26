@@ -114,7 +114,7 @@ func testFetchBalance(t *testing.T) {
 func testCreateOrder(t *testing.T) *base.Order {
 	// @ CreateOrder
 	t0 := time.Now()
-	order, err := ex.CreateOrder(symbol, "limit", "buy", 0.001 /*amount*/, 10000 /*price*/, nil)
+	order, err := ex.CreateOrder(symbol, "limit", "buy", 1 /*amount*/, 40000 /*price*/, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

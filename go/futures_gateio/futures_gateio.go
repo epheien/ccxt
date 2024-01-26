@@ -79,18 +79,25 @@ func (self *FuturesGateio) Describe() []byte {
     "api": {
         "public": {
             "get": [
+				"futures/usdt/contracts",
+				"futures/usdt/contracts/{contract}",
 				"futures/usdt/order_book",
             ]
         },
         "private": {
             "get": [
 				"futures/usdt/accounts",
+				"futures/usdt/orders/{order_id}",
+				"futures/usdt/orders",
             ],
             "post": [
+				"futures/usdt/orders",
             ],
             "delete": [
+				"futures/usdt/orders/{order_id}",
             ],
             "put": [
+				"futures/usdt/orders/{order_id}",
             ]
         }
     },
@@ -347,24 +354,22 @@ func (self *FuturesGateio) CreateOrder(symbol string, type_ string, side string,
 	}()
 	market := self.Market(symbol)
 	request := map[string]interface{}{
-		"symbol":   market.Id,
-		"quantity": amount,
-		"side":     strings.ToUpper(side),
-		"type":     strings.ToUpper(type_),
+		"contract": market.Id,
+		"price":    self.Float64ToString(price),
 	}
-	if type_ == "limit" {
-		request["price"] = price
-		request["timeInForce"] = "GTC"
+	if side == "buy" {
+		request["size"] = int64(amount)
+	} else {
+		request["size"] = -int64(amount)
 	}
-	response := self.ApiFunc("privatePostOrder", self.Extend(request, params), nil, nil)
+	response := self.ApiFunc("privatePostFuturesUsdtOrders", self.Extend(request, params), nil, nil)
 	return &Order{
-		Id:            fmt.Sprintf("%d", self.SafeInteger(response, "orderId")),
-		Symbol:        symbol,
-		Type:          type_,
-		Side:          side,
-		Status:        "open",
-		ClientOrderId: self.SafeString(response, "clientOrderId"),
-		Info:          response,
+		Id:     fmt.Sprintf("%d", self.SafeInteger(response, "id")),
+		Symbol: symbol,
+		Type:   type_,
+		Side:   side,
+		Status: "open",
+		Info:   response,
 	}, nil
 }
 
