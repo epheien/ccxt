@@ -324,7 +324,7 @@ func (self *FuturesGateio) ParseOrder(order interface{}, market interface{}) (re
 		side = "sell"
 	}
 	amount = math.Abs(amount)
-	remaining := self.SafeFloat(order, "left", 0)
+	remaining := math.Abs(self.SafeFloat(order, "left", 0))
 	status := self.ParseOrderStatus(self.SafeString(order, "status"))
 	average := self.SafeFloat(order, "fill_price")
 	return map[string]interface{}{
@@ -410,14 +410,10 @@ func (self *FuturesGateio) CancelOrder(id string, symbol string, params map[stri
 			err = self.PanicToError(e)
 		}
 	}()
-	market := self.Market(symbol)
 	request := map[string]interface{}{
-		"symbol": market.Id,
+		"order_id": id,
 	}
-	if id != "" {
-		request["orderId"] = id
-	}
-	response = self.ApiFunc("privateDeleteOrder", self.Extend(request, params), nil, nil)
+	response = self.ApiFunc("privateDeleteFuturesUsdtOrdersOrderId", self.Extend(request, params), nil, nil)
 	return response, nil
 }
 
