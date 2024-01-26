@@ -90,6 +90,8 @@ func (self *FuturesGateio) Describe() []byte {
 				"futures/usdt/accounts",
 				"futures/usdt/orders/{order_id}",
 				"futures/usdt/orders",
+				"futures/usdt/positions",
+				"futures/usdt/positions/{contract}",
             ],
             "post": [
 				"futures/usdt/orders",
@@ -435,7 +437,7 @@ func (self *FuturesGateio) FetchMarkPrice(symbol string, params map[string]inter
 		MarkPrice:  self.SafeFloat(data, "mark_price", 0),
 		IndexPrice: self.SafeFloat(data, "index_price", 0),
 		//Timestamp:  self.SafeInteger(data, "time", 0),
-		Info:       data,
+		Info: data,
 	}, nil
 }
 
@@ -447,34 +449,27 @@ func (self *FuturesGateio) FetchPositions(symbol string, params map[string]inter
 	}()
 	request := map[string]interface{}{}
 	market := self.Market(symbol)
-	request["symbol"] = market.Id
-	response := self.ApiFuncReturnList("privateGetV2PositionRisk", self.Extend(request, params), nil, nil)
+	request["contract"] = market.Id
+	response := self.ApiFunc("privateGetFuturesUsdtPositionsContract", self.Extend(request, params), nil, nil)
 
-	for _, item := range response {
-		if self.SafeString(item, "symbol") != market.Id {
-			continue
-		}
-		amount := self.SafeFloat(item, "positionAmt")
-		pos := &Position{
-			Symbol:     symbol,
-			Side:       "long",
-			Leverage:   self.SafeFloat(item, "leverage", 0),
-			Amount:     math.Abs(amount),
-			UsedAmount: 0,
-			Price:      self.SafeFloat(item, "entryPrice", 0),
-			RealPnl:    0,
-			UnrealPnl:  self.SafeFloat(item, "unRealizedProfit", 0),
-			Info:       item,
-		}
-		if strings.ToLower(self.SafeString(item, "positionSide")) == "both" {
-			if amount < 0 {
-				pos.Side = "short"
-			}
-		} else {
-			pos.Side = strings.ToLower(self.SafeString(item, "positionSide"))
-		}
-		result = append(result, pos)
+	item := response
+	amount := self.SafeFloat(item, "size")
+	pos := &Position{
+		Symbol:     symbol,
+		Side:       "long",
+		Leverage:   self.SafeFloat(item, "cross_leverage_limit", 0),
+		Amount:     math.Abs(amount),
+		UsedAmount: 0,
+		Price:      self.SafeFloat(item, "entry_price", 0),
+		RealPnl:    self.SafeFloat(item, "realised_pnl"),
+		UnrealPnl:  self.SafeFloat(item, "unrealised_pnl", 0),
+		Info:       item,
 	}
+	if amount < 0 {
+		pos.Side = "short"
+	}
+	result = append(result, pos)
+
 	return
 }
 
