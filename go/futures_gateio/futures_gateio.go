@@ -81,6 +81,7 @@ func (self *FuturesGateio) Describe() []byte {
             "get": [
 				"futures/usdt/contracts",
 				"futures/usdt/contracts/{contract}",
+				"futures/usdt/contracts/{contract}",
 				"futures/usdt/order_book",
             ]
         },
@@ -425,15 +426,15 @@ func (self *FuturesGateio) FetchMarkPrice(symbol string, params map[string]inter
 	}()
 	market := self.Market(symbol)
 	request := map[string]interface{}{
-		"symbol": market.Id,
+		"contract": market.Id,
 	}
-	response := self.ApiFunc("publicGetPremiumIndex", self.Extend(request, params), nil, nil)
+	response := self.ApiFunc("publicGetFuturesUsdtContractsContract", self.Extend(request, params), nil, nil)
 	data := response
 	return &MarkPrice{
 		Symbol:     symbol,
-		MarkPrice:  self.SafeFloat(data, "markPrice", 0),
-		IndexPrice: self.SafeFloat(data, "indexPrice", 0),
-		Timestamp:  self.SafeInteger(data, "time", 0),
+		MarkPrice:  self.SafeFloat(data, "mark_price", 0),
+		IndexPrice: self.SafeFloat(data, "index_price", 0),
+		//Timestamp:  self.SafeInteger(data, "time", 0),
 		Info:       data,
 	}, nil
 }
