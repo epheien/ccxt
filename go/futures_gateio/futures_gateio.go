@@ -380,12 +380,9 @@ func (self *FuturesGateio) FetchOrder(id string, symbol string, params map[strin
 	}()
 	market := self.Market(symbol)
 	request := map[string]interface{}{
-		"symbol": market.Id,
+		"order_id": id,
 	}
-	if id != "" {
-		request["orderId"] = id
-	}
-	response := self.ApiFunc("privateGetOrder", self.Extend(request, params), nil, nil)
+	response := self.ApiFunc("privateGetFuturesUsdtOrdersOrderId", self.Extend(request, params), nil, nil)
 	return self.ToOrder(self.ParseOrder(response, market)), nil
 }
 
