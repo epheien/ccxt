@@ -302,12 +302,8 @@ func (self *FuturesGateio) FetchOHLCV(symbol, timeframe string, since int64, lim
 
 func (self *FuturesGateio) ParseOrderStatus(status string) string {
 	statuses := map[string]interface{}{
-		"NEW":              "open",
-		"PARTIALLY_FILLED": "open",
-		"FILLED":           "closed",
-		"CANCELED":         "canceled",
-		"REJECTED":         "canceled",
-		"EXPIRED":          "canceled", // 订单过期(根据timeInForce参数规则)
+		"open":     "open",
+		"finished": "closed",
 	}
 	return self.SafeString(statuses, status, status)
 }
@@ -317,27 +313,30 @@ func (self *FuturesGateio) ParseOrder(order interface{}, market interface{}) (re
 	if market != nil {
 		symbol = market.(*Market).Symbol
 	}
-	clientOid := self.SafeString(order, "clientOrderId", "")
-	orderId := fmt.Sprintf("%d", self.SafeInteger(order, "orderId"))
-	_type := self.SafeStringLower(order, "type", "")
-	timestamp := self.SafeInteger(order, "time", 0)
+	clientOid := ""
+	orderId := fmt.Sprintf("%d", self.SafeInteger(order, "id"))
+	timestamp := int64(self.SafeFloat(order, "create_time", 0) * 1000)
 	datetime := self.Iso8601(timestamp)
 	price := self.SafeFloat(order, "price", 0)
-	side := self.SafeStringLower(order, "side", "")
-	amount := self.SafeFloat(order, "origQty", 0)
-	filled := self.SafeFloat(order, "executedQty", 0)
+	amount := self.SafeFloat(order, "size", 0)
+	side := "buy"
+	if amount < 0 {
+		side = "sell"
+	}
+	amount = math.Abs(amount)
+	remaining := self.SafeFloat(order, "left", 0)
 	status := self.ParseOrderStatus(self.SafeString(order, "status"))
-	average := self.SafeFloat(order, "avgPrice")
+	average := self.SafeFloat(order, "fill_price")
 	return map[string]interface{}{
 		"clientOrderId": clientOid,
 		"id":            orderId,
 		"symbol":        symbol,
-		"type":          _type,
+		"type":          "",
 		"side":          side,
 		"amount":        amount,
 		"price":         price,
-		"filled":        filled,
-		"remaining":     amount - filled,
+		"filled":        amount - remaining,
+		"remaining":     remaining,
 		"average":       average,
 		"timestamp":     timestamp,
 		"datetime":      datetime,
@@ -396,13 +395,15 @@ func (self *FuturesGateio) FetchOpenOrders(symbol string, since int64, limit int
 			err = self.PanicToError(e)
 		}
 	}()
-	request := map[string]interface{}{}
+	request := map[string]interface{}{
+		"status": "open",
+	}
 	var market *Market
 	if symbol != "" {
 		market = self.Market(symbol)
-		request["symbol"] = market.Id
+		request["contract"] = market.Id
 	}
-	response := self.ApiFuncReturnList("privateGetOpenOrders", self.Extend(request, params), nil, nil)
+	response := self.ApiFuncReturnList("privateGetFuturesUsdtOrders", self.Extend(request, params), nil, nil)
 	return self.ToOrders(self.ParseOrders(response, market, since, limit)), nil
 }
 
