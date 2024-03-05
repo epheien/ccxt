@@ -9,6 +9,7 @@ import (
 	"github.com/georgexdz/ccxt/go/bitmax2"
 	"github.com/georgexdz/ccxt/go/bybit"
 	"github.com/georgexdz/ccxt/go/futures_binance"
+	"github.com/georgexdz/ccxt/go/futures_gateio"
 	"github.com/georgexdz/ccxt/go/futures_kucoin"
 	"github.com/georgexdz/ccxt/go/gateio"
 	"github.com/georgexdz/ccxt/go/kucoin"
@@ -48,6 +49,8 @@ func New(exchange string, config *base.ExchangeConfig) (ex IExchange, err error)
 		ex, err = futures_kucoin.New(config)
 	case "futures_binance":
 		ex, err = futures_binance.New(config)
+	case "futures_gateio":
+		ex, err = futures_gateio.New(config)
 	case "mexc":
 		ex, err = mexc.New(config)
 	default:
