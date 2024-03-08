@@ -161,12 +161,14 @@ type Urls struct {
 	Fees StringSlice `json:"fees"`
 }
 
+/*
 // status = {
 //     'status': 'ok',
 //     'updated': None,
 //     'eta': None,
 //     'url': None,
 // }
+*/
 type ExchangeStatus struct {
 	Status  string // "ok", "maintenance"
 	Updated int64  // 更新时间戳?
@@ -239,6 +241,7 @@ type StringSlice []string
 // UnmarshalJSON accepts both forms for StringSlice:
 //   - ["s1", "s2"...]
 //   - "s"
+//
 // For the latter, ss will hold a slice of one element "s"
 // todo: unify to array form ?
 func (ss *StringSlice) UnmarshalJSON(b []byte) (err error) {
@@ -269,6 +272,7 @@ type ApiUrls struct {
 // UnmarshalJSON accepts both forms for ApiUrls:
 //   - {"public": "urlpub", "private": "urlpriv"} or
 //   - "url"
+//
 // For the latter, "url" is assigned to both a.Private and a.Public
 // todo: unify to struct form ?
 func (a *ApiUrls) UnmarshalJSON(b []byte) (err error) {
@@ -2333,20 +2337,20 @@ func (self *Exchange) Values(x interface{}) []interface{} {
 }
 
 /*
-   Accepts a map/array of objects and a key name to be used as an index:
-   array = [
-      { someKey: 'value1', anotherKey: 'anotherValue1' },
-      { someKey: 'value2', anotherKey: 'anotherValue2' },
-      { someKey: 'value3', anotherKey: 'anotherValue3' },
-   ]
-   key = 'someKey'
-
-   Returns a map:
-  {
-      value1: { someKey: 'value1', anotherKey: 'anotherValue1' },
-      value2: { someKey: 'value2', anotherKey: 'anotherValue2' },
-      value3: { someKey: 'value3', anotherKey: 'anotherValue3' },
-  }
+// Accepts a map/array of objects and a key name to be used as an index:
+// array = [
+//    { someKey: 'value1', anotherKey: 'anotherValue1' },
+//    { someKey: 'value2', anotherKey: 'anotherValue2' },
+//    { someKey: 'value3', anotherKey: 'anotherValue3' },
+// ]
+// key = 'someKey'
+//
+// Returns a map:
+// {
+//     value1: { someKey: 'value1', anotherKey: 'anotherValue1' },
+//     value2: { someKey: 'value2', anotherKey: 'anotherValue2' },
+//     value3: { someKey: 'value3', anotherKey: 'anotherValue3' },
+// }
 */
 func (self *Exchange) IndexBy(x interface{}, k string) map[string]interface{} {
 	out := map[string]interface{}{}
