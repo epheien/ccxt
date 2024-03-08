@@ -145,6 +145,49 @@ func (self *FuturesGateio) LoadMarkets() map[string]*Market {
 	return nil
 }
 
+func (self *FuturesGateio) FetchMarkets(params map[string]interface{}) ([]*Market, error) {
+	response := self.ApiFuncReturnList("publicGetFuturesUsdtContracts", params, nil, nil)
+	data := response
+	result := []interface{}{}
+	for i := 0; i < self.Length(data); i++ {
+		market := self.Member(data, i)
+		id := self.SafeString(market, "name", "")
+		baseId, quoteId := self.Unpack2(strings.Split(id, "_"))
+		base := self.SafeCurrencyCode(baseId)
+		quote := self.SafeCurrencyCode(quoteId)
+		symbol := base + "/" + quote
+		active := !self.SafeBool(market, "in_delisting")
+		multiplier := self.SafeFloat(market, "quanto_multiplier")
+		precision := map[string]interface{}{
+			"base":   self.PrecisionFromString(self.SafeString(market, "quanto_multiplier")),
+			"quote":  self.PrecisionFromString(self.SafeString(market, "order_price_round")),
+			"amount": self.PrecisionFromString(self.SafeString(market, "quanto_multiplier")),
+			"price":  self.PrecisionFromString(self.SafeString(market, "order_price_round")),
+		}
+		limits := map[string]interface{}{
+			"amount": map[string]interface{}{
+				"min": self.SafeFloat(market, "order_size_min") * multiplier,
+				"max": self.SafeFloat(market, "order_size_max") * multiplier,
+			},
+		}
+		result = append(result, map[string]interface{}{
+			"futures":        true,
+			"id":             id,
+			"symbol":         symbol,
+			"baseId":         baseId,
+			"quoteId":        quoteId,
+			"base":           base,
+			"quote":          quote,
+			"active":         active,
+			"precision":      precision,
+			"limits":         limits,
+			"baseMultiplier": self.SafeFloat(market, "quanto_multiplier"),
+			"info":           market,
+		})
+	}
+	return self.ToMarkets(result), nil
+}
+
 // BTC/USDT => BTC_USDT
 func (self *FuturesGateio) Market(symbol string) *Market {
 	li := strings.Split(symbol, "/")

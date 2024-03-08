@@ -58,6 +58,7 @@ type Market struct {
 	Symbol         string      `json:"symbol"` // ccxt unified
 	Base           string      `json:"base"`
 	BaseNumericId  string      `json:"baseNumericId"`
+	BaseMultiplier float64     `json:"baseMultiplier"`
 	Quote          string      `json:"quote"`
 	QuoteNumericId string      `json:"quoteNumericId"`
 	BaseId         string      `json:"baseId"`  // from bitmex
@@ -79,12 +80,12 @@ type Market struct {
 
 // Precision struct
 type Precision struct {
-	Price       int `json:"price"` // 精度, 即小数位数, 例如 0.01 即为2, 1 即为 0
-	PriceSacle  int `priceScale`   // 缩放, 10 的整数倍, 其他均为非法值. > 1 时才使用. 例如 0.25 => amount: 25, scale 100
+	Price       int `json:"price"`      // 精度, 即小数位数, 例如 0.01 即为2, 1 即为 0
+	PriceSacle  int `json:"priceScale"` // 缩放, 10 的整数倍, 其他均为非法值. > 1 时才使用. 例如 0.25 => amount: 25, scale 100
 	Amount      int `json:"amount"`
-	AmountScale int `amountScale`
-	Base        int `json:"base"`
+	AmountScale int `json:"amountScale"`
 	Quote       int `json:"quote"`
+	Base        int `json:"base"`
 }
 
 // Limits struct
@@ -867,8 +868,14 @@ func (self *Exchange) MarketFromMap(o interface{}) *Market {
 		if m["futures"] != nil {
 			p.Future = m["futures"].(bool)
 		}
+		if m["future"] != nil {
+			p.Future = m["future"].(bool)
+		}
 		if m["option"] != nil {
 			p.Option = m["option"].(bool)
+		}
+		if m["baseMultiplier"] != nil {
+			p.BaseMultiplier = m["baseMultiplier"].(float64)
 		}
 		//p.Prediction
 		if m["precision"] != nil {
@@ -878,6 +885,12 @@ func (self *Exchange) MarketFromMap(o interface{}) *Market {
 			}
 			if precisionMap["price"] != nil {
 				p.Precision.Price = int(ToInteger(precisionMap["price"]))
+			}
+			if precisionMap["base"] != nil {
+				p.Precision.Base = int(ToInteger(precisionMap["base"]))
+			}
+			if precisionMap["quote"] != nil {
+				p.Precision.Quote = int(ToInteger(precisionMap["quote"]))
 			}
 		}
 		//p.Limits
