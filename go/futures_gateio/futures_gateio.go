@@ -8,6 +8,7 @@ import (
 	. "github.com/georgexdz/ccxt/go/base"
 	"math"
 	urllib "net/url"
+	"strconv"
 	"strings"
 )
 
@@ -81,8 +82,8 @@ func (self *FuturesGateio) Describe() []byte {
             "get": [
 				"futures/usdt/contracts",
 				"futures/usdt/contracts/{contract}",
-				"futures/usdt/contracts/{contract}",
 				"futures/usdt/order_book",
+				"futures/usdt/trades",
             ]
         },
         "private": {
@@ -405,6 +406,49 @@ func (self *FuturesGateio) FetchOpenOrders(symbol string, since int64, limit int
 	}
 	response := self.ApiFuncReturnList("privateGetFuturesUsdtOrders", self.Extend(request, params), nil, nil)
 	return self.ToOrders(self.ParseOrders(response, market, since, limit)), nil
+}
+
+func (self *FuturesGateio) FetchTrades(symbol string, since int64, limit int64, params map[string]interface{}) (trades []*Trade, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = self.PanicToError(e)
+		}
+	}()
+	market := self.Market(symbol)
+	request := map[string]interface{}{
+		"contract": market.Id,
+	}
+	if limit > 0 {
+		request["limit"] = limit
+	}
+	if since > 0 {
+		request["from"] = since
+	}
+	response := self.ApiFuncReturnList("publicGetFuturesUsdtTrades", self.Extend(request, params), nil, nil)
+	trades = self.ParseTrades(response, market, since, limit)
+	trades = self.ReverseTrades(trades)
+	return
+}
+
+func (self *FuturesGateio) ParseTrade(trade interface{}, market *Market) (result *Trade) {
+	result = &Trade{
+		Id:        strconv.FormatInt(self.SafeInteger(trade, "id"), 10),
+		Timestamp: int64(self.SafeFloat(trade, "create_time") * 1000),
+		Price:     self.SafeFloat(trade, "price"),
+		Info:      trade,
+	}
+	amount := self.SafeFloat(trade, "size")
+	result.Amount = math.Abs(amount)
+	if amount >= 0 {
+		result.Side = "buy"
+	} else {
+		result.Side = "sell"
+	}
+	result.Datetime = self.Iso8601(result.Timestamp)
+	if market != nil {
+		result.Symbol = market.Symbol
+	}
+	return
 }
 
 func (self *FuturesGateio) CancelOrder(id string, symbol string, params map[string]interface{}) (response interface{}, err error) {

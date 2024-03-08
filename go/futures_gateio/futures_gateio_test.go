@@ -60,6 +60,7 @@ func loadApiKey(ex *FuturesGateio) {
 }
 
 func TestAll(t *testing.T) {
+	testFetchTrades(t)
 	testFetchOrderBook(t)
 	//testFetchTicker(t)
 	//testFetchOHLCV(t)
@@ -82,6 +83,20 @@ func testFetchOrderBook(t *testing.T) {
 		t.Fatal(err)
 	}
 	log.Println("##### FetchOrderBook:", symbol, ex.JsonIndent(orderbook))
+}
+
+func testFetchTrades(t *testing.T) {
+	// @ FetchTrades
+	trades, err := ex.FetchTrades(symbol, 0, 0, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	length := len(trades)
+	log.Println("##### FetchTrades:", symbol, len(trades), ex.JsonIndent(trades[0:2]), ex.JsonIndent(trades[length-3:length-1]))
+	if len(trades) > 0 {
+		length := len(trades)
+		log.Println(symbol, "Trade Frequency:", float64(length)*1000/float64(trades[length-1].Timestamp-trades[0].Timestamp))
+	}
 }
 
 func testFetchTicker(t *testing.T) {
