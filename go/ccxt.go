@@ -22,6 +22,7 @@ import (
 type IExchange = base.ExchangeInterface
 type ExchangeConfig = base.ExchangeConfig
 type Order = base.Order
+type Position = base.Position
 
 func New(exchange string, config *base.ExchangeConfig) (ex IExchange, err error) {
 	switch exchange {
