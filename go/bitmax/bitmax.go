@@ -2,7 +2,7 @@ package bitmax
 
 import (
 	"fmt"
-	. "github.com/georgexdz/ccxt/go/base"
+	. "github.com/epheien/ccxt/go/base"
 	"github.com/thoas/go-funk"
 	"math"
 	"reflect"

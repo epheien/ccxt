@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/georgexdz/ccxt/go/base"
+	"github.com/epheien/ccxt/go/base"
 )
 
 var symbol = "BTC/USDT"

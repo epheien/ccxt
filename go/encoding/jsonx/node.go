@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"text/scanner"
 
-	"github.com/georgexdz/ccxt/go/encoding"
+	"github.com/epheien/ccxt/go/encoding"
 )
 
 // Node represents top-level json object

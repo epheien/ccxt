@@ -1,8 +1,8 @@
 package margin_kucoin
 
 import (
-	. "github.com/georgexdz/ccxt/go/base"
-	"github.com/georgexdz/ccxt/go/kucoin"
+	. "github.com/epheien/ccxt/go/base"
+	"github.com/epheien/ccxt/go/kucoin"
 )
 
 type MarginKucoin struct {

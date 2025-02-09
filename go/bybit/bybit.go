@@ -2,7 +2,7 @@ package bybit
 
 import (
 	"fmt"
-	. "github.com/georgexdz/ccxt/go/base"
+	. "github.com/epheien/ccxt/go/base"
 	"strings"
 )
 

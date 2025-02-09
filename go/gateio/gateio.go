@@ -5,7 +5,7 @@ import (
 	"crypto/sha512"
 	"encoding/hex"
 	"fmt"
-	. "github.com/georgexdz/ccxt/go/base"
+	. "github.com/epheien/ccxt/go/base"
 	urllib "net/url"
 	"strings"
 )

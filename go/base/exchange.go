@@ -39,7 +39,7 @@ import (
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/fasthttpproxy"
 
-	"github.com/georgexdz/ccxt/go/encoding/jsonx"
+	"github.com/epheien/ccxt/go/encoding/jsonx"
 	"github.com/tidwall/gjson"
 )
 

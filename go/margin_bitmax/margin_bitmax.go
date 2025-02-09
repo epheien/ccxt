@@ -1,8 +1,8 @@
 package margin_bitmax
 
 import (
-	. "github.com/georgexdz/ccxt/go/base"
-	"github.com/georgexdz/ccxt/go/bitmax"
+	. "github.com/epheien/ccxt/go/base"
+	"github.com/epheien/ccxt/go/bitmax"
 )
 
 type MarginBitmax struct {

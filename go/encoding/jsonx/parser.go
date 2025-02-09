@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"text/scanner"
 
-	"github.com/georgexdz/ccxt/go/encoding"
+	"github.com/epheien/ccxt/go/encoding"
 )
 
 const (

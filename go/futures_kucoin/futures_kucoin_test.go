@@ -7,7 +7,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/georgexdz/ccxt/go/base"
+	"github.com/epheien/ccxt/go/base"
 )
 
 var symbol = "XBT/USDTM"

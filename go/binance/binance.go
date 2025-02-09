@@ -3,7 +3,7 @@ package binance
 import (
 	"encoding/json"
 	"fmt"
-	. "github.com/georgexdz/ccxt/go/base"
+	. "github.com/epheien/ccxt/go/base"
 	"math"
 	"reflect"
 	"strings"
